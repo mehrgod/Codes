@@ -210,6 +210,10 @@ def find_best_param(path):
     
     plt.figure()
     plt.plot(index,xxs_error)
+    plt.title('Error X1+X2+S')
+    plt.xlabel('Iteration')
+    plt.legend()
+    plt.savefig(path + "ErrorXXS.png")
     
     plt.show()
     
@@ -243,7 +247,7 @@ def find_best_param(path):
         outa = outa + '\t' + sum_all_dict.get(sum_all_error[i]) + ': ' + str(sum_all_error[i])
         outx = outx + '\t' + xxs_dict.get(xxs_error[i]) + ': ' + str(xxs_error[i])
         
-    fwt.write('X1: ' + out1[1:] + '\nX2: ' + out2[1:] + '\nX12: ' + out12[1:] + '\nC: ' + outc[1:] + '\nD: ' + outd[1:] + '\nS: ' + outs[1:] + '\nSum: ' + outa[1:] + '\nX1X2S: ' + outx[1:])
+    fwt.write('X1\t' + out1[1:] + '\nX2\t' + out2[1:] + '\nX12\t' + out12[1:] + '\nC\t' + outc[1:] + '\nD\t' + outd[1:] + '\nS\t' + outs[1:] + '\nSum\t' + outa[1:] + '\nX1X2S\t' + outx[1:])
     
     fwt.close()
     
@@ -465,6 +469,10 @@ def find_best_param_sep(path):
     
     plt.figure()
     plt.plot(index,xxs_error)
+    plt.title('Error X1+X2+S')
+    plt.xlabel('Iteration')
+    plt.legend()
+    plt.savefig(path + "ErrorXXS.png")
     
     plt.show()
     
@@ -507,8 +515,12 @@ def find_best_param_sep(path):
 
 if __name__ == "__main__":
     
-    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_sep/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_sep/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/'
     
-    #find_best_param(path)
-    find_best_param_sep(path)
+    #path = 'C:/Project/EDU/OLI_175318/hint/lg/grid_mp_con/'
+    
+    find_best_param(path)
+    #find_best_param_sep(path)
     
