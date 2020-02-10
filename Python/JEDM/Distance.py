@@ -681,7 +681,7 @@ def W_to_plot(path, num_of_cluster, clustering):
     
     record = [[] for i in range(3)]
         
-    with open(path + 'W1cW2cW1dW2d-2.csv') as wf:
+    with open(path + 'W1cW2cW1dW2d.csv') as wf:
         for line in wf:
             arr = np.fromstring(line.strip(), dtype = float, sep = ',')
             record[2].append(arr)
@@ -776,7 +776,7 @@ def W_to_heatmap(path, num_of_cluster, clustering, c, d):
         
     record = [[] for i in range(3)]
     
-    with open(path + 'W1cW2cW1dW2d-2.csv') as wf:
+    with open(path + 'W1cW2cW1dW2d.csv') as wf:
         for line in wf:
             arr = np.fromstring(line.strip(), dtype = float, sep = ',')
             B = np.concatenate((arr[:c], X, arr[c:c+d], X, arr[c+d:]))
@@ -1049,13 +1049,14 @@ if __name__ == "__main__":
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/a0.2b0.5d0.9-k18-c11d7/k18/c11d7/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.1b0.1d0.9-k19-c8d11/k19/c8d11/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.1b0.1d0.9-k20-c4d16/k20/c4d16/'
-    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/dual/1000/k20/c10d10/'
     
     #path = 'C:/Project/EDU/files/2013/example/Topic/60/LG/6040i10-2/1/k15/c10d5/auto/'
     
-    
-    #concateWcWd(path)
     '''
+    concateWcWd(path)
+    
     for i in range(1,7):
         spectral(path, i)
         kmeans(path, i)
@@ -1094,18 +1095,21 @@ if __name__ == "__main__":
     #number_of_cluster = '6'
     #W_to_plot_test(path, '2')
     
-    c = 12
-    d = 8
+    c = 10
+    d = 10
     #clustering = 'kmeans'
-    clustering = 'Spectral'
+    #clustering = 'Spectral'
+    
+    clustering = ['Spectral', 'kmeans']
     
     
-    #cluster = ['2','3','4','5','6']
-    cluster = ['6']
+    cluster = ['2','3','4','5','6']
+    #cluster = ['6']
     for number_of_cluster in cluster:
         #prepare_cluster(path, number_of_cluster) #depricated
-        W_to_plot(path, number_of_cluster, clustering)
-        W_to_heatmap(path, number_of_cluster, clustering, c, d)
+        for cluster in clustering:
+            W_to_plot(path, number_of_cluster, cluster)
+            W_to_heatmap(path, number_of_cluster, cluster, c, d)
     
     
     #create_matrix(path)

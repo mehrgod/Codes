@@ -15,6 +15,446 @@ from numpy import linalg as LA
 #mode = 'write'
 #mode = 'test'
 
+def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
+    
+    with open('C:/Project/EDU/files/2013/example/Topic/similarity/dual/l.txt') as file:
+        array2dX1 = [[float(digit) for digit in line.split(',')] for line in file]
+        
+    X1 = np.array(array2dX1)
+    
+    with open('C:/Project/EDU/files/2013/example/Topic/similarity/dual/h.txt') as file:
+        array2dX2 = [[float(digit) for digit in line.split(',')] for line in file]
+    
+    X2 = np.array(array2dX2)
+    
+    with open('C:/Project/EDU/files/2013/example/Topic/similarity/dual/newmp.csv') as file:
+        arrayS = [[float(digit) for digit in line.split(',')] for line in file]
+        
+    S = np.array(arrayS)
+    
+    epoc = 1000
+    
+    m1,n1 = X1.shape
+    m2,n2 = X2.shape
+    
+    W1 = np.random.rand(m1,k)
+    H1 = np.random.rand(n1,k)
+    
+    W2 = np.random.rand(m2,k)
+    H2 = np.random.rand(n2,k)
+    
+    
+    '''
+    print 'W1: ', W1.shape
+    print 'W2: ', W2.shape
+    print 'H1: ', H1.shape
+    print 'H2: ', H2.shape
+    '''
+    
+    W1 = W1 / 10.0
+    H1 = H1 / 10.0
+    
+    W2 = W2 / 10.0
+    H2 = H2 / 10.0
+    
+    '''
+    print 'W1', W1
+    print 'W2', W2
+    print 'H1', H1
+    print 'H2', H2
+    '''
+    
+    index = []
+    errX1 = []
+    errX2 = []
+    errX1X2 = []
+    errSqrC = []
+    errD = []
+        
+    errS1 = []
+    errS2 = []
+    errS = []
+    
+    
+    #C alpha
+    #D beta
+    
+    #X1X2
+    gama = 2.0 - (alpha + beta)
+    #gama
+    eps = 1
+    #S delta
+    
+    #W1cW1d
+    sigma = 1.0
+    
+    reg = 1
+
+    for e in range(epoc):
+        learning_rate = 0.01/np.sqrt(e+1)
+    
+        W1c = W1[:,:kc]
+        W1d = W1[:,kc:]
+        
+        H1c = H1[:,:kc]
+        H1d = H1[:,kc:]
+        
+        W2c = W2[:,:kc]
+        W2d = W2[:,kc:]
+        
+        H2c = H2[:,:kc]
+        H2d = H2[:,kc:]
+        
+        #Con_sim II        
+        if (typ == 'con'):
+            W = np.concatenate((W1, W2), axis = 1)
+        
+        
+        if (typ == 'con'):
+            grad_w1c = (2 * gama * np.dot((np.dot(W1, H1.T) - X1), H1c)
+            + 2 * alpha * (W1c - W2c)
+            + 2 * reg * W1c
+            - 4 * delta * np.dot((S - eps * np.dot(W, W.T)), W1c)
+            + 2 * sigma * np.dot(np.dot(W1c, W1d.T), W1d)
+            ) 
+        else:
+            if (typ == 'sep'):
+                grad_w1c = (2 * gama * np.dot((np.dot(W1, H1.T) - X1), H1c)
+                + 2 * alpha * (W1c - W2c)
+                + 2 * reg * W1c
+                - 4 * delta * np.dot((S - eps * np.dot(W1, W1.T)), W1c)
+                )
+        
+        W1cn = W1c - learning_rate * grad_w1c
+        
+        
+        if (typ == 'con'):
+            grad_w2c = (2 * gama * np.dot((np.dot(W2, H2.T) - X2), H2c)
+            - 2 * alpha * (W1c - W2c)
+            + 2 * reg * W2c
+            - 4 * delta * np.dot((S - eps * np.dot(W, W.T)), W2c)
+            + 2 * sigma * np.dot(np.dot(W2c, W2d.T), W2d)
+            )
+        else:
+            if (typ == 'sep'):
+                grad_w2c = (2 * gama * np.dot((np.dot(W2, H2.T) - X2), H2c)
+                - 2 * alpha * (W1c - W2c)
+                + 2 * reg * W2c
+                - 4 * delta * np.dot((S - eps * np.dot(W2, W2.T)), W2c)
+                )
+            
+        W2cn = W2c - learning_rate * grad_w2c
+        
+        
+        if (typ == 'con'):    
+            grad_w1d = (2 * gama * np.dot((np.dot(W1, H1.T) - X1), H1d) 
+            + 2 * beta * np.dot(W2d, np.dot(W1d.T,W2d))
+            + 2 * reg * W1d
+            - 4 * delta * np.dot((S - eps * np.dot(W, W.T)), W1d)
+            + 2 * sigma * np.dot(np.dot(W1c, W1d.T), W1c)
+            )
+        else:
+            if (typ == 'sep'):
+                grad_w1d = (2 * np.dot((np.dot(W1, H1.T) - X1), H1d) 
+                + 2 * beta * np.dot(W2d, np.dot(W1d.T,W2d))
+                + 2 * reg * W1d
+                - 4 * delta * np.dot((S - eps * np.dot(W1, W1.T)), W1d)
+                )
+        
+        W1dn = W1d - learning_rate * grad_w1d
+        
+        
+        if (typ == 'con'):
+            grad_w2d = (2 * gama * np.dot((np.dot(W2, H2.T) - X2), H2d) 
+            + 2 * beta * np.dot(W1d, np.dot(W1d.T,W2d))
+            + 2 * reg * W2d
+            - 4 * delta * np.dot((S - eps * np.dot(W, W.T)), W2d)
+            + 2 * sigma * np.dot(np.dot(W2c, W2d.T), W2c)
+            )
+        else:
+            if (typ == 'sep'):
+                grad_w2d = (2 * np.dot((np.dot(W2, H2.T) - X2), H2d) 
+                + 2 * beta * np.dot(W1d, np.dot(W1d.T,W2d))
+                + 2 * reg * W2d
+                - 4 * delta * np.dot((S - eps * np.dot(W2, W2.T)), W2d)
+                )
+                
+        
+        W2dn = W2d - learning_rate * grad_w2d
+        
+        grad_h1 = -2 * gama * np.dot(np.transpose(X1 - np.dot(W1, H1.T)), W1) + 2 * reg * H1
+        H1n = H1 - learning_rate * grad_h1
+        
+        grad_h2 = -2 * gama * np.dot(np.transpose(X2 - np.dot(W2, H2.T)), W2) + 2 * reg * H2
+        H2n = H2 - learning_rate * grad_h2
+        
+        if (typ == 'con'):
+            grad_eps = delta * np.sum(np.multiply( (-2 * np.dot(W, W.T)) , (S - eps * np.dot(W, W.T)) ))
+        else:
+            if (typ == 'sep'):
+                grad_eps = delta * (np.sum(np.multiply( (-2 * np.dot(W1, W1.T)) , (S - eps * np.dot(W1, W1.T)) ))
+                + np.sum(np.multiply( (-2 * np.dot(W2, W2.T)) , (S - eps * np.dot(W2, W2.T)) ))
+                )
+        
+        eps = eps - learning_rate * grad_eps
+        
+        
+        W1n = np.concatenate((W1cn,W1dn), axis = 1)
+        W2n = np.concatenate((W2cn,W2dn), axis = 1)
+        
+        
+        W1n[W1n<0] = 0
+        H1n[H1n<0] = 0
+
+        W2n[W2n<0] = 0
+        H2n[H2n<0] = 0
+
+        errorX1 = error(X1, np.dot(W1, H1.T))
+        
+        errorX2 = error(X2, np.dot(W2, H2.T))
+        
+        errorSqrC = lossfuncSqr(W1cn, W2cn)
+        
+        errorD = lossfuncD(np.transpose(W1dn), W2dn)
+        
+        if (typ == 'con'):
+            errorS = error(S, eps * np.dot(W, W.T))
+        else:
+            if (typ == 'sep'):
+                errorS1 = error(S, eps * np.dot(W1,W1.T))
+                errorS2 = error(S, eps * np.dot(W2,W2.T))
+        
+        index.append(e)
+        
+        errX1.append(errorX1)
+
+        errX2.append(errorX2)
+        
+        errX1X2.append((errorX1 + errorX2)/2)
+        
+        errSqrC.append(errorSqrC)
+        
+        errD.append(errorD)
+        
+        if (typ == 'con'):
+            errS.append(errorS)
+        else:
+            if (typ == 'sep'):
+                errS1.append(errorS1)
+                errS2.append(errorS2)
+
+        W1 = W1n
+        H1 = H1n
+        
+        W2 = W2n
+        H2 = H2n
+        
+        
+        if (e % 10 == 0):
+            print (e)
+            
+        
+    
+    #mode = 'test'
+    mode = 'write'
+    
+    if (mode == 'write'):        
+        if (os.path.isdir(path) == False):
+            os.mkdir(path)
+        pathk = path + "k" + str(k)
+        if (os.path.isdir(pathk) == False):
+            os.mkdir(pathk)
+        
+        pathkc = pathk + "/c" + str(kc) + "d" + str(k-kc)    
+        if (os.path.isdir(pathkc) == False):
+            os.mkdir(pathkc)
+        
+        print 'Mode write'
+        
+        np.savetxt(pathkc + "/W1.csv", W1, delimiter=",")
+        np.savetxt(pathkc + "/W2.csv", W2, delimiter=",")
+        
+        np.savetxt(pathkc + "/W1c.csv", W1c, delimiter=",")
+        np.savetxt(pathkc + "/W2c.csv", W2c, delimiter=",")
+        np.savetxt(pathkc + "/W1d.csv", W1d, delimiter=",")
+        np.savetxt(pathkc + "/W2d.csv", W2d, delimiter=",")
+        
+        np.savetxt(pathkc + "/H1.csv", H1, delimiter=",")
+        np.savetxt(pathkc + "/H2.csv", H2, delimiter=",")
+        
+        np.savetxt(pathkc + "/H1c.csv", H1c, delimiter=",")
+        np.savetxt(pathkc + "/H2c.csv", H2c, delimiter=",")
+        np.savetxt(pathkc + "/H1d.csv", H1d, delimiter=",")
+        np.savetxt(pathkc + "/H2d.csv", H2d, delimiter=",")
+        
+        
+        fw = open(pathkc + '/err.txt', "w")
+        
+        fw.write("Error X1: " + str(errX1[-1]) + "\n")
+        fw.write("Error X2: " + str(errX2[-1]) + "\n")
+        fw.write("Error X1+X2: " + str(errX1X2[-1]) + "\n")
+        fw.write("Error C: " + str(errSqrC[-1]) + "\n")
+        fw.write("Error D: " + str(errD[-1]) + "\n")
+        if (typ == 'con'):
+            fw.write("Error S: " + str(errS[-1]) + "\n")
+        else:
+            if (typ == 'sep'):
+                fw.write("Error S1: " + str(errS1[-1]) + "\n")
+                fw.write("Error S2: " + str(errS2[-1]) + "\n")
+        fw.write("Eps: " + str(eps))
+        
+        errorX1 = np.abs(X1 - np.dot(W1,np.transpose(H1)))
+        errorX2 = np.abs(X2 - np.dot(W2,np.transpose(H2)))
+        
+            
+        fw.close()
+        
+        pathk = path + str(k)
+        
+        err1 = error(X1, np.dot(W1, H1.T))
+        fw1 = open(pathk + 'err1.txt', "w")
+        fw1.write(str(err1))
+        fw1.close()
+        
+        err2 = error(X2, np.dot(W2, H2.T))
+        fw2 = open(pathk + 'err2.txt', "w")
+        fw2.write(str(err2))
+        fw2.close()
+        
+        if (typ == 'con'):
+            errs = error(S, np.dot(W,W.T))
+            fw3 = open(pathk + 'errs.txt', "w")
+            fw3.write(str(errs))
+            fw3.close()
+        else:
+            if (typ == 'sep'):
+                errs1 = error(S, np.dot(W1,W1.T))
+                fw3 = open(pathk + 'errs2.txt', "w")
+                fw3.write(str(errs1))
+                fw3.close()
+                
+                errs2 = error(S, np.dot(W2,W2.T))
+                fw4 = open(pathk + 'errs1.txt', "w")
+                fw4.write(str(errs2))
+                fw4.close()
+        
+
+    pathk = path + "k" + str(k)
+    pathkc = pathk + "/c" + str(kc) + "d" + str(k-kc)
+    print (pathkc)
+    
+    
+    #mode = 'test'
+    mode = 'write'
+    
+    plt.figure()
+    plt.plot(index,errX1)
+    plt.title('Error X1')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorX1.png")
+        plt.clf()
+        plt.close()
+    
+    plt.figure()
+    plt.plot(index,errX2)
+    plt.title('Error X2')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorX2.png")
+        plt.clf()
+        plt.close()
+    
+    plt.figure()
+    plt.plot(index,errSqrC)
+    plt.title('Error C')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorC.png")
+        plt.clf()
+        plt.close()
+    
+    plt.figure()
+    plt.plot(index,errD)
+    plt.title('Error D')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorD.png")
+        plt.clf()
+        plt.close()
+    
+    
+    if (typ == 'con'):
+        plt.figure()
+        plt.plot(index,errS)
+        plt.title('Error S')
+        plt.xlabel('Iteration')
+        if mode == 'write':
+            plt.savefig(pathkc + "/ErrorS.png")
+            plt.clf()
+            plt.close()
+    else:
+        if (typ == 'sep'):
+            plt.figure()
+            plt.plot(index,errS1)
+            plt.title('Error S1')
+            plt.xlabel('Iteration')
+            if mode == 'write':
+                plt.savefig(pathkc + "/ErrorS1.png")
+                plt.clf()
+                plt.close()
+            
+            plt.figure()
+            plt.plot(index,errS2)
+            plt.title('Error S2')
+            plt.xlabel('Iteration')
+            if mode == 'write':
+                plt.savefig(pathkc + "/ErrorS2.png")
+                plt.clf()
+                plt.close()
+                
+    print ('plot')
+    print eps
+    #plt.show()
+    plt.rcParams.update({'font.size': 10})
+    
+
+
+    '''
+    plt.figure(4)
+    plt.plot(index,errS2)
+    plt.title('Error S2')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorS2.png")
+    '''
+
+    '''
+    #fig = plt.figure()
+    matplotlib.rcParams['mathtext.fontset'] = 'stix'
+    matplotlib.rcParams['font.family'] = 'STIXGeneral'
+    #matplotlib.pyplot.title(r'ABC123 vs $\mathrm{ABC123}^{123}$')
+    plt.rcParams.update({'font.size': 24})
+    
+    
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize = (5,8))
+    fig.subplots_adjust(hspace = .3)
+    
+    #plt.figure(figsize = (10,15))
+    
+    ax[0].plot(index,errSqrX1,label = 'X1 Error')
+    ax[0].set_xlabel('Iteration')
+    ax[0].set_ylabel('Reconstruction Error')
+    ax[0].legend()
+    
+    ax[1].plot(index,errSqrX2,label = 'X2 Error')
+    ax[1].set_xlabel('Iteration')
+    ax[1].set_ylabel('Reconstruction Error')
+    ax[1].legend()
+    
+    plt.savefig(pathkc + "/X1X2V_large.pdf")
+    '''
+
 def gd_eps(typ, k, kc, path, alpha, beta, delta):
     
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/'
@@ -1515,7 +1955,7 @@ if __name__ == "__main__":
     beta = 0.1
     delta = 0.9
     k = 20
-    kc = 12
+    kc = 10
     
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_sep/a0.1b0.1d0.9-k17-c16d1/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/a0.3b0.6d0.9-k19-c2d17-10/'
@@ -1531,7 +1971,8 @@ if __name__ == "__main__":
     #path = 'C:/Project/EDU/OLI_175318/hint/lg/grid_mp_con/a0.7b0.8d0.9-k30-c4d26/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.2b0.9d0.9-k19-c13d6/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.1b0.1d0.9-k20-c4d16/'
-    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/dual/'
     
     #grid_search(path, typ)
     
@@ -1548,7 +1989,7 @@ if __name__ == "__main__":
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/a0.2b0.5d0.9-k18-c11d7/'
     
     
-    gd_eps(typ, k, kc, path, alpha, beta, delta)
+    gd_eps_dual(typ, k, kc, path, alpha, beta, delta)
     
     
     #grid_search(path, typ)
