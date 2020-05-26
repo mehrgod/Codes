@@ -11,11 +11,246 @@ import matplotlib.pyplot as plt
 import os
 import matplotlib
 from numpy import linalg as LA
+import sys
+import seaborn as sns
 
 #mode = 'write'
 #mode = 'test'
 
-def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
+def gd_simple(path, alpha, beta):
+    
+    with open('C:/Project/EDU/files/2013/example/Topic/similarity/dual/l.txt') as file:
+        array2dX1 = [[float(digit) for digit in line.split(',')] for line in file]
+        
+    X1 = np.array(array2dX1)
+    
+    with open('C:/Project/EDU/files/2013/example/Topic/similarity/dual/h.txt') as file:
+        array2dX2 = [[float(digit) for digit in line.split(',')] for line in file]
+    
+    X2 = np.array(array2dX2)
+    
+    
+    epoc = 1000
+    
+    m1,n1 = X1.shape
+    m2,n2 = X2.shape
+    
+    
+    W1 = np.random.rand(m1,k)
+    H1 = np.random.rand(n1,k)
+    
+    W2 = np.random.rand(m2,k)
+    H2 = np.random.rand(n2,k)
+    
+    
+    W1 = W1 / 10.0
+    H1 = H1 / 10.0
+    
+    W2 = W2 / 10.0
+    H2 = H2 / 10.0
+    
+    
+    index = []
+    errX1 = []
+    errX2 = []
+    errX1X2 = []
+    
+    gama = 2.0 - (alpha + beta)
+
+    
+    for e in range(epoc):
+        learning_rate = 0.01/np.sqrt(e+1)
+    
+        grad_W1 = -2 * gama * np.dot(X1 - np.dot(W1, H1.T), H1)
+        W1n = W1 - learning_rate * grad_W1
+        
+        grad_H1 = -2 * gama * np.dot(W1.T, X1 - np.dot(W1, H1.T))
+        H1Tn = H1.T - learning_rate * grad_H1
+        
+        grad_W2 = -2 * gama * np.dot(X2 - np.dot(W2, H2.T), H2)
+        W2n = W2 - learning_rate * grad_W2
+        
+        grad_H2 = -2 * gama * np.dot(W2.T, X2 - np.dot(W2, H2.T))
+        H2Tn = H2.T - learning_rate * grad_H2
+        
+        
+        W1n[W1n<0] = 0
+        H1Tn[H1Tn<0] = 0
+
+        W2n[W2n<0] = 0
+        H2Tn[H2Tn<0] = 0
+
+        errorX1 = error(X1, np.dot(W1, H1.T))
+        
+        errorX2 = error(X2, np.dot(W2, H2.T))
+        
+        index.append(e)
+        
+        errX1.append(errorX1)
+
+        errX2.append(errorX2)
+        
+        errX1X2.append((errorX1 + errorX2)/2)
+        
+        W1 = W1n
+        H1 = H1Tn.T
+        
+        W2 = W2n
+        H2 = H2Tn.T
+        
+        
+        if (e % 10 == 0):
+            print (e)
+        
+    
+    #mode = 'test'
+    mode = 'write'
+    
+    if (mode == 'write'):        
+        if (os.path.isdir(path) == False):
+            os.mkdir(path)
+        pathk = path + "k" + str(k)
+        if (os.path.isdir(pathk) == False):
+            os.mkdir(pathk)
+        
+        pathkc = pathk + "/c" + str(kc) + "d" + str(k-kc)    
+        if (os.path.isdir(pathkc) == False):
+            os.mkdir(pathkc)
+        
+        
+        if (mode == 'write'):
+            
+            np.savetxt(pathkc + "/W1.csv", W1, delimiter=",")
+            np.savetxt(pathkc + "/W2.csv", W2, delimiter=",")
+            
+            np.savetxt(pathkc + "/H1.csv", H1, delimiter=",")
+            np.savetxt(pathkc + "/H2.csv", H2, delimiter=",")
+            
+            
+            fw = open(pathkc + '/err.txt', "w")
+            
+            fwx1 = open(pathkc + '/errors-X1.txt', "w")
+            fwx2 = open(pathkc + '/errors-X2.txt', "w")
+            
+            for i in errX1:
+                fwx1.write(str(i) + '\n')
+                
+            for i in errX2:
+                fwx2.write(str(i) + '\n')
+            
+            
+            errX1mae = errorMAE(X1, np.dot(W1, H1.T))
+            errX2mae = errorMAE(X2, np.dot(W2, H2.T))
+            
+            fw.write("Error X1 RMSE: " + str(errX1[-1]) + " MAE: " + str(errX1mae) + "\n")
+            fw.write("Error X2 RMSE: " + str(errX2[-1]) + " MAE: " + str(errX2mae) +  "\n")
+            fw.write("Error X1+X2: " + str(errX1X2[-1]) + "\n")
+            
+            errorX1 = np.abs(X1 - np.dot(W1,np.transpose(H1)))
+            errorX2 = np.abs(X2 - np.dot(W2,np.transpose(H2)))
+            
+                
+            fw.close()
+            fwx1.close()
+            fwx2.close()
+            
+        pathk = path + str(k)
+        
+        err1 = error(X1, np.dot(W1, H1.T))
+        #errmae1 = errorMAE(X1, np.dot(W1, H1.T))
+        fw1 = open(pathk + 'err1.txt', "w")
+        #fw1.write('RMSE: ' + str(err1) + '\nMAE: ' + str(errmae1))
+        fw1.write(str(err1))
+        fw1.close()
+        
+        err2 = error(X2, np.dot(W2, H2.T))
+        #errmae2 = errorMAE(X2, np.dot(W2, H2.T))
+        fw2 = open(pathk + 'err2.txt', "w")
+        #fw2.write('RMSE: ' + str(err2) + '\nMAE: ' + str(errmae2))
+        fw2.write(str(err2))
+        fw2.close()
+        
+        
+    pathk = path + "k" + str(k)
+    pathkc = pathk + "/c" + str(kc) + "d" + str(k-kc)
+    print (pathkc)
+    
+    
+    #mode = 'test'
+    mode = 'write'
+    
+    
+    
+    plt.figure()
+    plt.plot(index,errX1)
+    plt.title('Error X1')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorX1.png")
+        plt.clf()
+        plt.close()
+    
+    plt.figure()
+    plt.plot(index,errX2)
+    plt.title('Error X2')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorX2.png")
+        plt.clf()
+        plt.close()
+    
+    plt.figure()
+    plt.plot(index,errX1X2)
+    plt.title('Error X1X2')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorX1X2.png")
+        plt.clf()
+        plt.close()
+                
+    print ('plot')
+    plt.show()
+    plt.rcParams.update({'font.size': 10})
+    
+
+
+    '''
+    plt.figure(4)
+    plt.plot(index,errS2)
+    plt.title('Error S2')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorS2.png")
+    '''
+
+    '''
+    #fig = plt.figure()
+    matplotlib.rcParams['mathtext.fontset'] = 'stix'
+    matplotlib.rcParams['font.family'] = 'STIXGeneral'
+    #matplotlib.pyplot.title(r'ABC123 vs $\mathrm{ABC123}^{123}$')
+    plt.rcParams.update({'font.size': 24})
+    
+    
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize = (5,8))
+    fig.subplots_adjust(hspace = .3)
+    
+    #plt.figure(figsize = (10,15))
+    
+    ax[0].plot(index,errSqrX1,label = 'X1 Error')
+    ax[0].set_xlabel('Iteration')
+    ax[0].set_ylabel('Reconstruction Error')
+    ax[0].legend()
+    
+    ax[1].plot(index,errSqrX2,label = 'X2 Error')
+    ax[1].set_xlabel('Iteration')
+    ax[1].set_ylabel('Reconstruction Error')
+    ax[1].legend()
+    
+    plt.savefig(pathkc + "/X1X2V_large.pdf")
+    '''
+
+
+def gd_eps_dual(typ, k, kc, path, alpha, beta, delta, sigma):
     
     with open('C:/Project/EDU/files/2013/example/Topic/similarity/dual/l.txt') as file:
         array2dX1 = [[float(digit) for digit in line.split(',')] for line in file]
@@ -70,6 +305,8 @@ def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
     errX1X2 = []
     errSqrC = []
     errD = []
+    errCD1 = []
+    errCD2 = []
         
     errS1 = []
     errS2 = []
@@ -86,7 +323,7 @@ def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
     #S delta
     
     #W1cW1d
-    sigma = 1.0
+    #sigma = 1.0
     
     reg = 1
 
@@ -216,6 +453,8 @@ def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
         errorSqrC = lossfuncSqr(W1cn, W2cn)
         
         errorD = lossfuncD(np.transpose(W1dn), W2dn)
+        errorCD1 = lossfuncD(W1c, W1d.T)
+        errorCD2 = lossfuncD(W1c, W2d.T)
         
         if (typ == 'con'):
             errorS = error(S, eps * np.dot(W, W.T))
@@ -235,6 +474,10 @@ def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
         errSqrC.append(errorSqrC)
         
         errD.append(errorD)
+        
+        errCD1.append(errorCD1)
+        
+        errCD2.append(errorCD2)
         
         if (typ == 'con'):
             errS.append(errorS)
@@ -271,6 +514,7 @@ def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
         
         print 'Mode write'
         
+        
         np.savetxt(pathkc + "/W1.csv", W1, delimiter=",")
         np.savetxt(pathkc + "/W2.csv", W2, delimiter=",")
         
@@ -295,6 +539,8 @@ def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
         fw.write("Error X1+X2: " + str(errX1X2[-1]) + "\n")
         fw.write("Error C: " + str(errSqrC[-1]) + "\n")
         fw.write("Error D: " + str(errD[-1]) + "\n")
+        fw.write("Error CD1: " + str(errCD1[-1]) + "\n")
+        fw.write("Error CD2: " + str(errCD2[-1]) + "\n")
         if (typ == 'con'):
             fw.write("Error S: " + str(errS[-1]) + "\n")
         else:
@@ -380,6 +626,24 @@ def gd_eps_dual(typ, k, kc, path, alpha, beta, delta):
     plt.xlabel('Iteration')
     if mode == 'write':
         plt.savefig(pathkc + "/ErrorD.png")
+        plt.clf()
+        plt.close()
+    
+    plt.figure()
+    plt.plot(index,errCD1)
+    plt.title('Error CD1')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorCD1.png")
+        plt.clf()
+        plt.close()
+    
+    plt.figure()
+    plt.plot(index,errCD2)
+    plt.title('Error CD2')
+    plt.xlabel('Iteration')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorCD2.png")
         plt.clf()
         plt.close()
     
@@ -487,7 +751,7 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
         
     S = np.array(arrayS)
     
-    epoc = 100
+    epoc = 1000
     
     m1,n1 = X1.shape
     m2,n2 = X2.shape
@@ -530,6 +794,8 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
     errS2 = []
     errS = []
     
+    eps_list = []
+    
     
     #C
     #alpha = 0.5
@@ -546,7 +812,7 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
     reg = 1
 
     for e in range(epoc):
-        learning_rate = 0.01/np.sqrt(e+1)
+        learning_rate = 0.02/np.sqrt(e+1)
     
         W1c = W1[:,:kc]
         W1d = W1[:,kc:]
@@ -661,6 +927,8 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
         #print 'W', W[0]
         #print 'H', H1[0]
         eps = eps - learning_rate * grad_eps
+        
+        eps_list.append(eps)
         
         
         W1n = np.concatenate((W1cn,W1dn), axis = 1)
@@ -778,8 +1046,28 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
         
         fw = open(pathkc + '/err.txt', "w")
         
-        fw.write("Error X1: " + str(errX1[-1]) + "\n")
-        fw.write("Error X2: " + str(errX2[-1]) + "\n")
+        fwx1 = open(pathkc + '/errors-X1.txt', "w")
+        fwx2 = open(pathkc + '/errors-X2.txt', "w")
+        
+        fwe = open(pathkc + '/eps.txt', "w")
+            
+        for i in errX1:
+            fwx1.write(str(i) + '\n')
+                
+        for i in errX2:
+            fwx2.write(str(i) + '\n')
+            
+        for i in eps_list:
+            fwe.write(str(i) + '\n')
+            
+        errX1mae = errorMAE(X1, np.dot(W1, H1.T))
+        errX2mae = errorMAE(X2, np.dot(W2, H2.T))
+            
+        #fw.write("Error X1 RMSE: " + str(errX1[-1]) + " MAE: " + str(errX1mae) + "\n")
+        #fw.write("Error X2 RMSE: " + str(errX2[-1]) + " MAE: " + str(errX2mae) +  "\n")    
+        
+        fw.write("Error X1 RMSE: " + str(errX1[-1]) + " MAE: " + str(errX1mae) + "\n")
+        fw.write("Error X2 RMSE: " + str(errX2[-1]) + " MAE: " + str(errX2mae) + "\n")
         fw.write("Error X1+X2: " + str(errX1X2[-1]) + "\n")
         fw.write("Error C: " + str(errSqrC[-1]) + "\n")
         fw.write("Error D: " + str(errD[-1]) + "\n")
@@ -798,6 +1086,9 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
         #np.savetxt(pathkc + "/ErrorX2.csv", errorX2, delimiter=",")
             
         fw.close()
+        fwx1.close()
+        fwx2.close()
+        fwe.close()
         
         pathk = path + str(k)
         
@@ -837,58 +1128,82 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
     #mode = 'test'
     mode = 'write'
     
+    sns.set()
+    
+    plt.figure()
+    plt.plot(index,eps_list)
+    #plt.title('Error eps')
+    plt.xlabel('Iteration')
+    plt.ylabel('Value')
+    if mode == 'write':
+        plt.savefig(pathkc + "/Eps.png")
+        plt.savefig(pathkc + "/Eps.pdf")
+        #plt.clf()
+        #plt.close()
+    
     plt.figure()
     plt.plot(index,errX1)
-    plt.title('Error X1')
+    #plt.title('Error X1')
     plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
     if mode == 'write':
         plt.savefig(pathkc + "/ErrorX1.png")
-        plt.clf()
-        plt.close()
+        plt.savefig(pathkc + "/ErrorX1.pdf")
+        #plt.clf()
+        #plt.close()
     
     plt.figure()
     plt.plot(index,errX2)
-    plt.title('Error X2')
+    #plt.title('Error X2')
     plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
     if mode == 'write':
         plt.savefig(pathkc + "/ErrorX2.png")
-        plt.clf()
-        plt.close()
+        plt.savefig(pathkc + "/ErrorX2.pdf")
+        #plt.clf()
+        #plt.close()
     
     plt.figure()
     plt.plot(index,errSqrC)
-    plt.title('Error C')
+    #plt.title('Error C')
     plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
     if mode == 'write':
         plt.savefig(pathkc + "/ErrorC.png")
-        plt.clf()
-        plt.close()
+        plt.savefig(pathkc + "/ErrorC.pdf")
+        #plt.clf()
+        #plt.close()
     
     plt.figure()
     plt.plot(index,errD)
-    plt.title('Error D')
+    #plt.title('Error D')
     plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
     if mode == 'write':
         plt.savefig(pathkc + "/ErrorD.png")
-        plt.clf()
-        plt.close()
+        plt.savefig(pathkc + "/ErrorD.pdf")
+        #plt.clf()
+        #plt.close()
     
     
     if (typ == 'con'):
         plt.figure()
         plt.plot(index,errS)
-        plt.title('Error S')
+        #plt.title('Error S')
         plt.xlabel('Iteration')
+        plt.ylabel('Reconstruction Error')
         if mode == 'write':
             plt.savefig(pathkc + "/ErrorS.png")
-            plt.clf()
-            plt.close()
+            plt.savefig(pathkc + "/ErrorS.pdf")
+            #plt.clf()
+            #plt.close()
     else:
         if (typ == 'sep'):
             plt.figure()
             plt.plot(index,errS1)
-            plt.title('Error S1')
+            #plt.title('Error S1')
             plt.xlabel('Iteration')
+            plt.ylabel('Reconstruction Error')
             if mode == 'write':
                 plt.savefig(pathkc + "/ErrorS1.png")
                 plt.clf()
@@ -896,8 +1211,9 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
             
             plt.figure()
             plt.plot(index,errS2)
-            plt.title('Error S2')
+            #plt.title('Error S2')
             plt.xlabel('Iteration')
+            plt.ylabel('Reconstruction Error')
             if mode == 'write':
                 plt.savefig(pathkc + "/ErrorS2.png")
                 plt.clf()
@@ -905,7 +1221,7 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
                 
     print ('plot')
     print eps
-    #plt.show()
+    plt.show()
     plt.rcParams.update({'font.size': 10})
     
 
@@ -945,26 +1261,286 @@ def gd_eps(typ, k, kc, path, alpha, beta, delta):
     plt.savefig(pathkc + "/X1X2V_large.pdf")
     '''
 
+def gd_eps_no_structure(k, kc, path, alpha, beta):
+    
+    with open('C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/l.txt') as file:
+        array2dX1 = [[float(digit) for digit in line.split(',')] for line in file]
+    
+    X1 = np.array(array2dX1)
+    
+    with open('C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/h.txt') as file:
+        array2dX2 = [[float(digit) for digit in line.split(',')] for line in file]
+    
+    X2 = np.array(array2dX2)
+    
+    epoc = 1000
+    
+    m1,n1 = X1.shape
+    m2,n2 = X2.shape
+    
+    W1 = np.random.rand(m1,k)
+    H1 = np.random.rand(n1,k)
+    
+    W2 = np.random.rand(m2,k)
+    H2 = np.random.rand(n2,k)
+    
+    W1 = W1 / 10.0
+    H1 = H1 / 10.0
+    
+    W2 = W2 / 10.0
+    H2 = H2 / 10.0
+    
+    index = []
+    errX1 = []
+    errX2 = []
+    errX1X2 = []
+    errSqrC = []
+    errD = []
+    
+    #C
+    #alpha = 0.5
+    #D
+    #beta = 0.5
+    
+    #X1X2
+    gama = 2.0 - (alpha + beta)
+    #gama = 0.8
+    #eps = 1
+    #S
+    #delta = 0.5
+    
+    reg = 1
+
+    for e in range(epoc):
+        learning_rate = 0.02/np.sqrt(e+1)
+    
+        W1c = W1[:,:kc]
+        W1d = W1[:,kc:]
+        
+        H1c = H1[:,:kc]
+        H1d = H1[:,kc:]
+        
+        W2c = W2[:,:kc]
+        W2d = W2[:,kc:]
+        
+        H2c = H2[:,:kc]
+        H2d = H2[:,kc:]
+        
+        grad_w1c = (2 * gama * np.dot((np.dot(W1, H1.T) - X1), H1c)
+            + 2 * alpha * (W1c - W2c)
+            + 2 * reg * W1c
+            )
+        
+        
+        W1cn = W1c - learning_rate * grad_w1c
+        
+        grad_w2c = (2 * gama * np.dot((np.dot(W2, H2.T) - X2), H2c)
+            - 2 * alpha * (W1c - W2c)
+            + 2 * reg * W2c
+            )
+        
+        W2cn = W2c - learning_rate * grad_w2c
+        
+        grad_w1d = (2 * gama * np.dot((np.dot(W1, H1.T) - X1), H1d) 
+            + 2 * beta * np.dot(W2d, np.dot(W1d.T,W2d))
+            + 2 * reg * W1d
+            )
+        
+        W1dn = W1d - learning_rate * grad_w1d
+        
+        grad_w2d = (2 * gama * np.dot((np.dot(W2, H2.T) - X2), H2d) 
+            + 2 * beta * np.dot(W1d, np.dot(W1d.T,W2d))
+            + 2 * reg * W2d
+            )
+        
+        W2dn = W2d - learning_rate * grad_w2d
+        
+        grad_h1 = -2 * gama * np.dot(np.transpose(X1 - np.dot(W1, H1.T)), W1) + 2 * reg * H1
+        H1n = H1 - learning_rate * grad_h1
+        
+        grad_h2 = -2 * gama * np.dot(np.transpose(X2 - np.dot(W2, H2.T)), W2) + 2 * reg * H2
+        H2n = H2 - learning_rate * grad_h2
+        
+        W1n = np.concatenate((W1cn,W1dn), axis = 1)
+        W2n = np.concatenate((W2cn,W2dn), axis = 1)
+        
+        W1n[W1n<0] = 0
+        H1n[H1n<0] = 0
+
+        W2n[W2n<0] = 0
+        H2n[H2n<0] = 0
+
+        errorX1 = error(X1, np.dot(W1, H1.T))
+        errorX2 = error(X2, np.dot(W2, H2.T))
+        errorSqrC = lossfuncSqr(W1cn, W2cn)
+        errorD = lossfuncD(np.transpose(W1dn), W2dn)
+                
+        index.append(e)
+        
+        errX1.append(errorX1)
+        errX2.append(errorX2)
+        errX1X2.append((errorX1 + errorX2)/2)
+        errSqrC.append(errorSqrC)
+        errD.append(errorD)
+        
+        W1 = W1n
+        H1 = H1n
+        
+        W2 = W2n
+        H2 = H2n
+        
+        if (e % 10 == 0):
+            print (e)
+            
+    #mode = 'test'
+    mode = 'write'
+    
+    if (mode == 'write'):        
+        if (os.path.isdir(path) == False):
+            os.mkdir(path)
+        pathk = path + "k" + str(k)
+        if (os.path.isdir(pathk) == False):
+            os.mkdir(pathk)
+        
+        pathkc = pathk + "/c" + str(kc) + "d" + str(k-kc)    
+        if (os.path.isdir(pathkc) == False):
+            os.mkdir(pathkc)
+        
+        print 'Mode write'
+        
+        np.savetxt(pathkc + "/W1.csv", W1, delimiter=",")
+        np.savetxt(pathkc + "/W2.csv", W2, delimiter=",")
+        
+        np.savetxt(pathkc + "/W1c.csv", W1c, delimiter=",")
+        np.savetxt(pathkc + "/W2c.csv", W2c, delimiter=",")
+        np.savetxt(pathkc + "/W1d.csv", W1d, delimiter=",")
+        np.savetxt(pathkc + "/W2d.csv", W2d, delimiter=",")
+        
+        np.savetxt(pathkc + "/H1.csv", H1, delimiter=",")
+        np.savetxt(pathkc + "/H2.csv", H2, delimiter=",")
+        
+        np.savetxt(pathkc + "/H1c.csv", H1c, delimiter=",")
+        np.savetxt(pathkc + "/H2c.csv", H2c, delimiter=",")
+        np.savetxt(pathkc + "/H1d.csv", H1d, delimiter=",")
+        np.savetxt(pathkc + "/H2d.csv", H2d, delimiter=",")
+        
+        
+        fw = open(pathkc + '/err.txt', "w")
+        
+        fwx1 = open(pathkc + '/errors-X1.txt', "w")
+        fwx2 = open(pathkc + '/errors-X2.txt', "w")
+        
+        for i in errX1:
+            fwx1.write(str(i) + '\n')
+                
+        for i in errX2:
+            fwx2.write(str(i) + '\n')
+        
+        errX1mae = errorMAE(X1, np.dot(W1, H1.T))
+        errX2mae = errorMAE(X2, np.dot(W2, H2.T))
+        
+        fw.write("Error X1 RMSE: " + str(errX1[-1]) + " MAE: " + str(errX1mae) + "\n")
+        fw.write("Error X2 RMSE: " + str(errX2[-1]) + " MAE: " + str(errX2mae) + "\n")
+        fw.write("Error X1+X2: " + str(errX1X2[-1]) + "\n")
+        fw.write("Error C: " + str(errSqrC[-1]) + "\n")
+        fw.write("Error D: " + str(errD[-1]) + "\n")
+        
+        errorX1 = np.abs(X1 - np.dot(W1,np.transpose(H1)))
+        errorX2 = np.abs(X2 - np.dot(W2,np.transpose(H2)))
+            
+        fw.close()
+        fwx1.close()
+        fwx2.close()
+        
+        pathk = path + str(k)
+        
+        err1 = error(X1, np.dot(W1, H1.T))
+        fw1 = open(pathk + 'err1.txt', "w")
+        fw1.write(str(err1))
+        fw1.close()
+        
+        err2 = error(X2, np.dot(W2, H2.T))
+        fw2 = open(pathk + 'err2.txt', "w")
+        fw2.write(str(err2))
+        fw2.close()
+
+
+    pathk = path + "k" + str(k)
+    pathkc = pathk + "/c" + str(kc) + "d" + str(k-kc)
+    print (pathkc)
+    
+    
+    #mode = 'test'
+    mode = 'write'
+    
+    sns.set()
+    
+    plt.figure()
+    plt.plot(index,errX1)
+    plt.title('Error X1')
+    plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorX1.png")
+        plt.savefig(pathkc + "/ErrorX1.pdf")
+        #plt.clf()
+        #plt.close()
+    
+    plt.figure()
+    plt.plot(index,errX2)
+    plt.title('Error X2')
+    plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorX2.png")
+        plt.savefig(pathkc + "/ErrorX2.pdf")
+        #plt.clf()
+        #plt.close()
+    
+    plt.figure()
+    plt.plot(index,errSqrC)
+    plt.title('Error C')
+    plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorC.png")
+        plt.savefig(pathkc + "/ErrorC.pdf")
+        #plt.clf()
+        #plt.close()
+    
+    plt.figure()
+    plt.plot(index,errD)
+    plt.title('Error D')
+    plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
+    if mode == 'write':
+        plt.savefig(pathkc + "/ErrorD.png")
+        plt.savefig(pathkc + "/ErrorD.pdf")
+        #plt.clf()
+        #plt.close()
+    
+    
+    print ('plot')
+    
+    plt.show()
+    plt.rcParams.update({'font.size': 10})
+    
 
 def gd(typ, k, kc, path, alpha, beta, delta):
     
-    #with open(path[0:-3] + '/l.txt') as file:
-    #with open(path + 'l.txt') as file:
+    
     with open(path[0:-2] + 'l.txt') as file:
         array2dX1 = [[float(digit) for digit in line.split(',')] for line in file]
     
     X1 = np.array(array2dX1)
     
-    #with open(path[0:-3] + '/h.txt') as file:
-    #with open(path + 'h.txt') as file:
+    
     with open(path[0:-2] + 'h.txt') as file:
         array2dX2 = [[float(digit) for digit in line.split(',')] for line in file]
     
     X2 = np.array(array2dX2)
     
-    #with open(path[0:-3] + '/normal_mp.csv') as file:
-    #with open(path + 'normal_mp.csv') as file:
-    #with open(path[0:-2] + 'normal_mp.csv') as file:
+    
     with open(path[0:-2] + 'nms.csv') as file:
         arrayS = [[float(digit) for digit in line.split(',')] for line in file]
         
@@ -1184,7 +1760,7 @@ def gd(typ, k, kc, path, alpha, beta, delta):
             
         
     
-    #mode = 'test'
+    mode = 'test'
     if (mode == 'write'):        
         if (os.path.isdir(path) == False):
             os.mkdir(path)
@@ -1304,7 +1880,7 @@ def gd(typ, k, kc, path, alpha, beta, delta):
     print (pathkc)
     
     
-    #mode = 'test'
+    mode = 'test'
     
     plt.figure()
     plt.plot(index,errX1)
@@ -1606,7 +2182,7 @@ def gd_grid(k, kc, path, alpha, beta, delta):
             
         
     
-    #mode = 'write'
+    mode = 'write'
     if (mode == 'write'):        
         if (os.path.isdir(path) == False):
             os.mkdir(path)
@@ -1724,6 +2300,10 @@ def gd_grid(k, kc, path, alpha, beta, delta):
 
 def error(A, B):
     return np.sqrt(np.mean((A - B) ** 2))
+
+def errorMAE(A, B):
+    return np.mean(np.abs(A - B))
+    
 
 def lossfuncSqr(X,Xn):
     m,n = X.shape
@@ -1899,6 +2479,44 @@ def grid_search(path, typ):
                     
                 fwerr.close()
 
+def grid_search_constant_k(path, typ, k, kc):
+    
+    a = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    #a = [0.1]
+    b = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    #b = [0.1]
+    d = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    #d = [0.1]
+    s = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    #s = [0.1]
+    
+    
+    #a = [0.9]
+    #b = [0.9]
+    #d = [0.9]
+    #r = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    
+    #kc = 0
+    for alpha in a:
+        for beta in b:
+            for delta in d:
+                for sigma in s:
+                    pathn = path + 'a' + str(alpha) + 'b' + str(beta) + 'd' + str(delta) + 's' + str(sigma) + '/'
+                    if (os.path.isdir(pathn) == False):
+                        os.mkdir(pathn)
+                    #gd_eps_dual(typ, k, kc, pathn, alpha, beta, delta, sigma)
+                    
+                    
+                    try:
+                        gd_eps_dual(typ, k, kc, pathn, alpha, beta, delta, sigma)
+                    except:
+                        e = sys.exc_info()[0]
+                        print e
+                        fwerr = open(path + '/errors' + '_a' + str(alpha) + '_b' + str(beta) + '_d' + str(delta) + '_s' + str(sigma) +  '.txt', "w")
+                        fwerr.write('alpha: ' + str(alpha) + '\tbeta: ' + str(beta) + '\tdelta: ' + str(delta)+ '\ts: ' + str(sigma)+ '\tk: ' + str(k) + '\tkc: ' + str(kc)  + '\n' + e)
+                        fwerr.close()
+                    
+
 '''
 def grid_search_oli():
     path = ''
@@ -1931,6 +2549,7 @@ def grid_search_oli():
                     print ('K %s and Kc %s compeleted' %(k, kc))
 '''
 
+'''
 def iterating(path, typ, k, kc, alpha, beta, delta):
     
     for itr in range (1,10):
@@ -1946,6 +2565,7 @@ def iterating_oli(path,typ):
             for kc in range (5, k, 5):
                 gd(typ, k, kc, pathn, alpha, beta, delta)
             print ('K %s and Kc %s compeleted' %(k, kc))
+'''
 
 
 if __name__ == "__main__":
@@ -1973,6 +2593,10 @@ if __name__ == "__main__":
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.1b0.1d0.9-k20-c4d16/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/'
     path = 'C:/Project/EDU/files/2013/example/Topic/similarity/dual/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/baseline-error/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/baseline-mae/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/dual/a0.1b0.4d0.9s0.3-k20-c10d10-2/'
+    
     
     #grid_search(path, typ)
     
@@ -1980,16 +2604,39 @@ if __name__ == "__main__":
     #gd_eps(typ,k,kc,path,alpha,beta,delta)
     
     #iterating(path, typ, k, kc, alpha, beta, delta)
-    #grid_search()
+    
+    #grid_search_constant_k(path, typ, k, kc)
     
     
     
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/a0.1b0.1d0.9-k17-c5d12/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/a0.3b0.1d0.9-k19-c6d-13/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/a0.2b0.5d0.9-k18-c11d7/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/k20-c12-f-CD/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/k20-c12-mae/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/No-structure/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/simple/'
+    
+    alpha = 0.6
+    beta = 0.1
+    delta = 0.9
+    sigma = 0.3
+    k = 20
+    kc = 12
+    '''
+    alpha = 0.5
+    beta = 0.5
+    delta = 0.5
+    k = 20
+    kc = 12
+    '''
+    gd_simple(path, alpha, beta)
+    
+    #gd_eps(typ, k, kc, path, alpha, beta, delta)
+    #gd_eps_no_structure(k, kc, path, alpha, beta)
     
     
-    gd_eps_dual(typ, k, kc, path, alpha, beta, delta)
+    #gd_eps_dual(typ, k, kc, path, alpha, beta, delta, sigma)
     
     
     #grid_search(path, typ)

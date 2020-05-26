@@ -88,7 +88,7 @@ def create_matrix(path):
     
     print p
     
-    fw = open(path + 'newmp2.txt', "w")
+    fw = open(path + 'mp.txt', "w")
     
     for i in range(len(p)):
         row = ''
@@ -519,9 +519,11 @@ def spectral(path, n):
     ptrn = []
     #with open('C:/Project/EDU/OLI_175318/pattern.txt') as patterns:
     #with open('C:/Project/EDU/files/2013/example/Topic/similarity/pattern.txt') as patterns:
-    with open(path + 'pattern.txt') as patterns:
+    #with open(path + 'pattern.txt') as patterns:
+    with open(path + 'patternsTranslateFilterTFIDF.txt') as patterns:
         for p in patterns:
-            ptrn.append(p.strip())
+            t = p.split('\t')[0]
+            ptrn.append(t)
 
     clustering = SpectralClustering(n_clusters=n, assign_labels="discretize", random_state=0).fit(X)
     
@@ -562,9 +564,11 @@ def kmeans(path, n):
     ptrn = []
     #with open('C:/Project/EDU/OLI_175318/pattern.txt') as patterns:
     #with open('C:/Project/EDU/files/2013/example/Topic/similarity/pattern.txt') as patterns:
-    with open(path + 'pattern.txt') as patterns:
+    #with open(path + 'pattern.txt') as patterns:
+    with open(path + 'patternsTranslateFilterTFIDF.txt') as patterns:
         for p in patterns:
-            ptrn.append(p.strip())
+            t = p.split('\t')[0]
+            ptrn.append(t)
 
     clustering = KMeans(n_clusters=n, random_state=0).fit(X)
     
@@ -896,7 +900,58 @@ def W_to_heatmap(path, num_of_cluster, clustering, c, d):
 
 #def heatmap_from_file():
     
+def heatmap_H(path):
+    
+    intensity = 0.1
+    X = [intensity]
+        
+    with open(path + 'H1dLow.txt') as file:
+        array = [[float(digit) for digit in line.split('\t')] for line in file]
+    
+    X = np.array(array)  
+            
+    sns.set()
+    plt.figure(figsize = (5,10))
 
+    sns.set(font_scale=1.1)
+    cmap = sns.cm.rocket_r
+    sns_plot = sns.heatmap(X, 
+                           #yticklabels=pattern,
+                           cmap = cmap)
+    
+    sns_plot.figure.savefig(path + 'H1dLow.png')
+    sns_plot.figure.savefig(path + 'H1dLow.pdf')
+    plt.show()
+        
+
+def heatmap_f(path):
+    
+    with open(path + 'heatmap-sort.txt') as file:
+        array = [[float(digit) for digit in line.split('\t')] for line in file]
+    X = np.array(array)
+    
+    labels = []
+    
+    f = open(path + "label.txt")
+    lines = f.readlines()
+    for l in lines:
+        labels.append(l.strip())
+        
+    sns.set()
+    plt.figure(figsize = (10,15))
+
+    sns.set(font_scale=1.1)
+    cmap = sns.cm.rocket_r
+    sns_plot = sns.heatmap(X, 
+                           yticklabels=labels,
+                           cmap = cmap)
+    
+    sns_plot.figure.savefig(path +'heatmap-final.pdf')
+    sns_plot.figure.savefig(path +'heatmap-final.png')
+    
+    plt.show()
+    
+    
 def heatmap_ordered():
     path = "C:/Project/EDU/files/2013/example/Topic/60/LG/6040i10-2/1/k15/c10d5/"
     with open(path + 'heatmap_20_4.txt') as file:
@@ -1006,6 +1061,139 @@ def W_to_plot_test(path, num_of_cluster):
     #fw.close()
 
 
+def plot_error(path):
+    
+    index = [i for i in range(1000)]
+    
+    f1 = open(path + "errors-X1-nmf.txt")
+    lines = f1.readlines()
+    
+    errX1 = []
+    
+    for l in lines:
+        errX1.append(float(l.strip()))
+    
+    f2 = open(path + "errors-X2-nmf.txt")
+    lines = f2.readlines()
+    
+    errX2 = []
+    
+    for l in lines:
+        errX2.append(float(l.strip()))
+    
+    f1m = open(path + "errors-X1.txt")
+    lines = f1m.readlines()
+    
+    errX1m = []
+    
+    for l in lines:
+        errX1m.append(float(l.strip()))
+    
+    f2m = open(path + "errors-X2.txt")
+    lines = f2m.readlines()
+    
+    errX2m = []
+    
+    for l in lines:
+        errX2m.append(float(l.strip()))
+    
+    
+    matplotlib.rcParams['font.family'] = 'STIXGeneral'
+    plt.rcParams.update({'font.size': 24})
+    
+    plt.figure()
+    plt.xlabel('Iteration')
+    plt.ylabel('Reconstruction Error')
+    plt.plot(index,errX1,ls='--',label = '$X_1: NMF$')
+    plt.plot(index,errX2,ls='-',label = '$X_2: NMF$')
+    plt.plot(index,errX1m,ls=':',label = '$X_1: SB-DNMF$')
+    plt.plot(index,errX2m,ls='-.',label = '$X_2: SB-DNMF$')
+    plt.legend()
+    plt.savefig(path + "/ErrorAll3.png")
+    plt.savefig(path + "/ErrorAll3.pdf")
+    plt.show()
+    
+def plot_correlation(path):
+    #np.random.seed(19680801)
+    #data = np.random.randn(2, 100)
+    
+    f = open(path + "input.txt")
+    #f = open(path + "prehi.txt")
+    lines = f.readlines()
+    
+    
+    X = []
+    Y = []
+    
+    for l in lines:
+        x, y = l.split('\t')
+        X.append(float(x))
+        Y.append(float(y))
+    
+    #plt.figure(figsize=(10, 4))    
+    #low
+    plt.xlabel('Post-test Score')
+    plt.ylabel('Latent Factor 14')
+    #high
+    #plt.xlabel('Pre-test Score')
+    #plt.ylabel('Latent Factor 26')
+    plt.scatter(X, Y)
+    #plt.yticks(np.arange(0.01,0.02,0.005))
+    plt.savefig(path + "/correlation-postlo.pdf")
+    
+    
+    '''
+    fig, axs = plt.subplots(2, 2, figsize=(5, 5))
+    axs[0, 0].hist(data[0])
+    axs[1, 0].scatter(data[0], data[1])
+    axs[0, 1].plot(data[0], data[1])
+    axs[1, 1].hist2d(data[0], data[1])
+    '''
+    #plt.figure()
+    #plt.hist(data[0])
+    #plt.figure()
+    #plt.scatter(data[0], data[1])
+    #plt.figure()
+    #plt.plot(data[0], data[1])
+    #plt.figure()
+    #plt.hist2d(data[0], data[1])
+    
+    plt.show()
+        
+def plot_similarity(path):
+    with open(path + 'similarity.txt') as file:
+        array = [[float(digit) for digit in line.split('\t')] for line in file]
+    mydata = np.array(array)
+    
+    xaxis = [i for i in range(77)]
+    
+    #im = plt.imshow(mydata, aspect='auto',
+    #            origin='lower', extent=[0, 0.23, 0, 0.23]) 
+    #plt.colorbar(im, orientation='horizontal')
+    plt.xlabel=xaxis
+    plt.imshow(mydata, cmap='viridis')
+    #plt.colorbar(orientation = 'none')
+    
+    plt.show()
+    
+def filter_perf(path):
+    ids = []
+    with open(path + 'perfAll.txt') as file:
+        for line in file:
+            id = line.split('\t')[0]
+            ids.append(id)
+            
+    fw = open(path + '/filtered.txt', "w")
+    
+    with open(path + 'LabelSequence.txt') as file:
+        for line in file:
+            id, seq = line.split('\t')
+            if (id in ids):
+                fw.write(line)
+                
+    fw.close()
+    file.close()
+
 if __name__ == "__main__":
     #s1 = 'ssS_'
     #s2 = '_ssss'
@@ -1019,7 +1207,7 @@ if __name__ == "__main__":
     #test_lv()
     
     #path = "C:/Project/EDU/files/2013/example/Topic/similarity/"
-    #path = "C:/Project\EDU/OLI_175318/"
+    path = "C:/Project\EDU/OLI_175318/"
     
     #create_matrix(path)
     #normal_s(path)
@@ -1049,8 +1237,9 @@ if __name__ == "__main__":
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_mp_con/a0.2b0.5d0.9-k18-c11d7/k18/c11d7/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.1b0.1d0.9-k19-c8d11/k19/c8d11/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.1b0.1d0.9-k20-c4d16/k20/c4d16/'
-    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/'
-    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/dual/1000/k20/c10d10/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/dual/1000/k20/c10d10/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/dual/a0.1b0.4d0.9s0.3-k20-c10d10-2/k20/c10d10/'
     
     #path = 'C:/Project/EDU/files/2013/example/Topic/60/LG/6040i10-2/1/k15/c10d5/auto/'
     
@@ -1095,6 +1284,16 @@ if __name__ == "__main__":
     #number_of_cluster = '6'
     #W_to_plot_test(path, '2')
     
+    path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/testNewAll/k20/c10d10/'
+    
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuParamTest/k20/c10d10/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/testMuSimPlus/k20/c10d10/'
+    
+    concateWcWd(path)
+    for i in range(1,7):
+        spectral(path, i)
+        kmeans(path, i)
+    
     c = 10
     d = 10
     #clustering = 'kmeans'
@@ -1103,8 +1302,8 @@ if __name__ == "__main__":
     clustering = ['Spectral', 'kmeans']
     
     
-    cluster = ['2','3','4','5','6']
-    #cluster = ['6']
+    #cluster = ['2','3','4','5','6']
+    cluster = ['6']
     for number_of_cluster in cluster:
         #prepare_cluster(path, number_of_cluster) #depricated
         for cluster in clustering:
@@ -1112,9 +1311,27 @@ if __name__ == "__main__":
             W_to_heatmap(path, number_of_cluster, cluster, c, d)
     
     
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/Spectral/6/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/baseline-error/k20/c10d10/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/evaluation/'
+    
+    #plot_similarity(path)
+    #plot_correlation(path)
+    #plot_error(path)
+    #heatmap_f(path)
+    #heatmap_H(path)
     #create_matrix(path)
     #normal_s(path)
     
     #number_of_cluster = '6'
     #W_to_heatmap(path, number_of_cluster, c=2, d=17)
     #W_to_plot(path, number_of_cluster)
+    
+    '''
+    #Latex:
+    matplotlib.rcParams['font.family'] = 'STIXGeneral'
+    plt.rcParams.update({'font.size': 24})
+    '''
+    path = 'C:/Project/EDU/files/2013/example/Topic/60/prediction/'
+    #filter_perf(path)
