@@ -11,6 +11,7 @@ import math
 import matplotlib
 import numpy as np
 import seaborn as sns
+from sklearn import metrics
 import matplotlib.pyplot as plt
 from sklearn.cluster import SpectralClustering
 
@@ -102,7 +103,7 @@ def normal_s(path):
     B = maxA - A
     
     lower = 0
-    upper = 0.25
+    upper = 0.2
     
     m, n = B.shape
     
@@ -212,9 +213,93 @@ def W_to_plot(path, num_of_cluster, clustering):
     
     fw.close()
 
+def W_to_plot_f(path, num_of_cluster, clustering):
+    
+    record = [[] for i in range(3)]
+        
+    with open(path + 'W1cW2cW1dW2d.csv') as wf:
+        for line in wf:
+            arr = np.fromstring(line.strip(), dtype = float, sep = ',')
+            record[2].append(arr)
+            
+    with open(path + clustering + '_' + num_of_cluster + '.txt') as clf:
+        for line in clf:
+            pattern, cl = line.split()
+            record[0].append(pattern.strip())
+            record[1].append(cl.strip())
+    
+    clusters = list(set(record[1]))
+    
+    l = len(clusters)
+    
+    r = [[] for i in range(l)]
+    
+    for i in range(len(record[0])):
+        r[int(record[1][i])].append(record[2][i])
+        
+    list_of_matrices = []
+    
+    for i in range(l):
+        list_of_matrices.append(np.vstack(r[i]))
+    
+    avg = []
+    stv = []
+    
+    #new_path = path + clustering + '/' + num_of_cluster + '/'
+    new_path = path
+    if (os.path.isdir(new_path) == False):
+        os.mkdir(new_path)
+        
+    for i in range(len(list_of_matrices)):
+        raw = list_of_matrices[i]
+        avg_val = np.mean(raw, axis=0)
+        stv_val = np.std(raw, axis=0)
+        avg.append(avg_val)
+        stv.append(stv_val)
+        
+        np.savetxt(new_path + clusters[i] + '.csv', raw, delimiter=",")
+        
+    avgs = np.vstack(avg)
+    stvs = np.vstack(stv)
+    
+    avgstv = np.vstack((avgs, stvs))
+    
+    np.savetxt(new_path + 'all.csv' , avgstv, delimiter=",")
+    
+    fw = open(new_path + '/cluster_order.txt', "w")
+    
+    plt.figure(figsize = (20,10))
+    
+    for i in range(l):
+        m, n = list_of_matrices[i].shape
+        ci = []
+        index = []
+        ix = 0
+        for j in range(n):
+            ci.append(1.96 * stvs[i][j] / math.sqrt(m))
+            index.append(ix)
+            ix = ix + 1
+        
+        plt.errorbar(index, 
+                     avg[i], 
+                     ci, 
+                     capsize = 5,
+                     #linestyle='None',
+                     #label = 'Cluster' + clusters[i],
+                     label = 'Cluster' + str(i),
+                     capthick=1, linewidth=2, elinewidth=1)
+        
+        plt.legend()
+        fw.write(clusters[i] + '\t' + str(m) + '\n')
+    
+    plt.savefig(new_path + 'clusters.pdf')
+    plt.savefig(new_path + 'clusters.png')
+    
+    fw.close()
+
 def W_to_heatmap(path, num_of_cluster, clustering, c, d):
         
-    intensity = 0.1
+    intensity = 0.2
     X = [intensity]
         
     record = [[] for i in range(3)]
@@ -253,9 +338,13 @@ def W_to_heatmap(path, num_of_cluster, clustering, c, d):
     m, n = HM.shape
     
     np.savetxt(path + clustering + '/' + num_of_cluster + '/heatmap.csv', HM[:m-1], delimiter=",")
+    fw = open(path + '/ptrn.txt', "w")
+    for p in y_axis_label:
+        fw.write(p + '\n')
+    fw.close()
     
     sns.set()
-    plt.figure(figsize = (10,15))
+    plt.figure(figsize = (10,20))
 
     sns.set(font_scale=1.1)
     cmap = sns.cm.rocket_r
@@ -263,6 +352,135 @@ def W_to_heatmap(path, num_of_cluster, clustering, c, d):
     
     sns_plot.figure.savefig(path + clustering + '/' + num_of_cluster + '/heatmap.pdf')
     sns_plot.figure.savefig(path + clustering + '/' + num_of_cluster + '/heatmap.png')
+    
+    plt.show()
+
+def W_to_heatmap_f(path, num_of_cluster, clustering, c, d):
+        
+    intensity = 0.2
+    X = [intensity]
+        
+    record = [[] for i in range(3)]
+    
+    with open(path + 'W1cW2cW1dW2d.csv') as wf:
+        for line in wf:
+            arr = np.fromstring(line.strip(), dtype = float, sep = ',')
+            B = np.concatenate((arr[:c], X, arr[c:c+d], X, arr[c+d:]))
+            record[2].append(B)
+            
+    with open(path + clustering + '_' + num_of_cluster + '.txt') as clf:
+        for line in clf:
+            pattern, cl = line.split()
+            record[0].append(pattern.strip())
+            record[1].append(cl.strip())
+            
+    clusters = list(set(record[1]))
+    
+    l = len(clusters)
+    
+    y_axis_label = []
+    r = [[] for i in range(l)]
+    out = []
+    
+    for i in range(l):
+        for j in range(len(record[0])):
+            if record[1][j] == str(i):
+                y_axis_label.append(record[0][j])
+                r[int(record[1][j])].append(record[2][j])
+                out.append(record[2][j])
+        out.append(np.full((1, len(record[2][0])), intensity))
+        y_axis_label.append('')
+    
+    HM = np.vstack(out)
+    
+    m, n = HM.shape
+    '''
+    np.savetxt(path + clustering + '/' + num_of_cluster + '/heatmap.csv', HM[:m-1], delimiter=",")
+    fw = open(path + '/ptrn.txt', "w")
+    for p in y_axis_label:
+        fw.write(p + '\n')
+    fw.close()
+    '''
+    sns.set()
+    plt.figure(figsize = (10,20))
+
+    sns.set(font_scale=1.1)
+    cmap = sns.cm.rocket_r
+    sns_plot = sns.heatmap(HM[:m-1], yticklabels=y_axis_label, cmap = cmap)
+    
+    sns_plot.figure.savefig(path + '/heatmap.pdf')
+    sns_plot.figure.savefig(path + '/heatmap.png')
+    
+    plt.show()
+
+def W_to_heatmap_simple(path, num_of_cluster, clustering, c, d):
+        
+    intensity = 0.2
+    X = [intensity]
+        
+    #record = [[] for i in range(3)]
+    
+    with open(path + 'W1cW2cW1dW2d.csv') as wf:
+        W = list(csv.reader(wf, quoting=csv.QUOTE_NONNUMERIC))
+    '''
+    with open(path + 'W1cW2cW1dW2d.csv') as wf:
+        for line in wf:
+            arr = np.fromstring(line.strip(), dtype = float, sep = ',')
+            B = np.concatenate((arr[:c], X, arr[c:c+d], X, arr[c+d:]))
+            record[2].append(B)
+    '''        
+    
+    y_axis_label = []
+    
+    with open(path + 'ptrn.txt') as ptrnfile:
+        for line in ptrnfile:
+            y_axis_label.append(line)
+    
+        
+    '''
+    with open(path + clustering + '_' + num_of_cluster + '.txt') as clf:
+        for line in clf:
+            pattern, cl = line.split()
+            record[0].append(pattern.strip())
+            record[1].append(cl.strip())
+            
+    clusters = list(set(record[1]))
+    
+    l = len(clusters)
+    
+    y_axis_label = []
+    r = [[] for i in range(l)]
+    out = []
+    
+    for i in range(l):
+        for j in range(len(record[0])):
+            if record[1][j] == str(i):
+                y_axis_label.append(record[0][j])
+                r[int(record[1][j])].append(record[2][j])
+                out.append(record[2][j])
+        out.append(np.full((1, len(record[2][0])), intensity))
+        y_axis_label.append('')
+    
+    HM = np.vstack(out)
+    
+    m, n = HM.shape
+    
+    np.savetxt(path + clustering + '/' + num_of_cluster + '/heatmap.csv', HM[:m-1], delimiter=",")
+    fw = open(path + '/ptrn.txt', "w")
+    for p in y_axis_label:
+        fw.write(p + '\n')
+    fw.close()
+    '''
+    sns.set()
+    plt.figure(figsize = (10,20))
+
+    sns.set(font_scale=1.1)
+    cmap = sns.cm.rocket_r
+    #sns_plot = sns.heatmap(HM[:m-1], yticklabels=y_axis_label, cmap = cmap)
+    sns_plot = sns.heatmap(W, yticklabels=y_axis_label, cmap = cmap)
+    
+    sns_plot.figure.savefig(path + '/heatmap_f.pdf')
+    sns_plot.figure.savefig(path + '/heatmap_f.png')
     
     plt.show()
 
@@ -305,8 +523,39 @@ def concateWcWd(path):
     fw1d.close()
     fw2d.close()
     fw.close()
+    
+def concateW(path):
+    
+    with open(path + 'W1.csv') as fw1:
+        w1 = list(csv.reader(fw1, quoting=csv.QUOTE_NONNUMERIC))
+    
+    with open(path + 'W2.csv') as fw2:
+        w2 = list(csv.reader(fw2, quoting=csv.QUOTE_NONNUMERIC))
+    
+        
+    w1A = np.array(w1)
+    w2A = np.array(w2)
+    
+    #w12cA = (w1cA + w2cA) /2
+    
+    w = np.concatenate((w1A, w2A), axis = 1)
+    
+    np.savetxt(path + "W1cW2cW1dW2d.csv", w, delimiter=",")
+    
+    fw = open(path + "train-W.txt", "w")
+    
+    for row in w:
+        out = ''
+        for i in row:
+            out = out + ',' + "{:.8f}".format(i)
+        fw.write(out[1:] + '\n')
+            
+    
+    fw1.close()
+    fw2.close()
+    fw.close()
 
-def spectral(path, n):
+def spectral(path, ppath, n):
     
     with open(path + 'W1cW2cW1dW2d.csv') as f:
         array2d = list(csv.reader(f, quoting=csv.QUOTE_NONNUMERIC))
@@ -317,11 +566,17 @@ def spectral(path, n):
     
     ptrn = []
 
-    with open('C:/Project/EDU/OLI_175318/update/step/sep/tfidf/pattern.txt') as patterns:
+    #with open('C:/Project/EDU/OLI_175318/update/step/sep/tfidf/pattern.txt') as patterns:
+    with open(ppath + 'pattern.txt') as patterns:
         for p in patterns:
             ptrn.append(p.strip())
 
     clustering = SpectralClustering(n_clusters=n, assign_labels="discretize", random_state=0).fit(X)
+    
+    #sil = round(metrics.silhouette_score(X, clustering.labels_), 4)
+    sil = metrics.silhouette_score(X, clustering.labels_)
+    
+    print sil
     
     pathc = path + "Spectral/"
     
@@ -420,14 +675,15 @@ if __name__ == "__main__":
     #path = "C:/Project/EDU/OLI_175318/update/step/sep/train-test/0.4/lg/grid/a0.1b1.0d1.4-k8-c3d5/k8/c3d5/"
     path = "C:/Project/EDU/OLI_175318/update/step/sep/train-test/0.2/lg/grid/a0.5b1.0d1.4-k10-c3d7/k18/c7d11/"
     path = "C:/Project/EDU/OLI_175318/update/step/sep/train-test/0.1/lg/grid/a0.1b1.4d1.4-k12-c3d9/k12/c3d9/"
+    path = "C:/Project/EDU/files/2013/example/Topic/60/fix/"
     
     #stat_attempts_histogram()
     #stat_hint_histogram()
     #stat_sf_histogram()
-    '''
-    create_matrix(path)
-    normal_s(path)
-    '''
+    
+    #create_matrix(path)
+    #normal_s(path)
+    
     
     '''
     path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/'
@@ -449,11 +705,21 @@ if __name__ == "__main__":
     
     '''
     path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuParamTest/k20/c10d10/'
-    concateWcWd(path)
-    '''
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdate/k20/c10d10/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/60/fix/lg/NMF/k20/c12d8/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/lg/DNMF/k26/c19d7/'
+    #concateWcWd(path)
+    #concateW(path)
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/DNMF/k12/c3d9/'
+    ppath = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/'
     
-    for i in range(1,11):
-        spectral(path, i)
+    path = "C:/Project/EDU/Statistics-ds1139/fix/post/DNMF/k13/c4d9/"
+    ppath = "C:/Project/EDU/Statistics-ds1139/fix/"
+    #concateWcWd(path)
+    
+    #for i in range(2,7):
+    #for i in range(6,7):
+    #    spectral(path, ppath, i)
     
     
     #clustering = 'kmeans'
@@ -461,17 +727,30 @@ if __name__ == "__main__":
     
     #clustering = ['Spectral', 'kmeans']
     
-    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/'
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/'
     
     
-    c = 5
-    d = 5
-    
-    cluster = ['1','2','3','4','5','6','7','8','9','10']
-    #cluster = ['6']
+    c = 4
+    d = 9
+    '''
+    #cluster = ['2','3','4','5','6']
+    cluster = ['6']
     for number_of_cluster in cluster:
         for cluster in clustering:
             print cluster
-            #W_to_plot(path, number_of_cluster, cluster)
-            #W_to_heatmap(path, number_of_cluster, cluster, c, d)
+            W_to_plot(path, number_of_cluster, cluster)
+            W_to_heatmap(path, number_of_cluster, cluster, c, d)
     '''
+    
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/DNMF/k12/c3d9/Spectral/6/'
+    path = "C:/Project/EDU/Statistics-ds1139/fix/post/DNMF/k13/c4d9/Spectral/6/"
+    
+    cluster = ['6']
+    for number_of_cluster in cluster:
+        for cluster in clustering:
+            print cluster
+            #W_to_plot_f(path, number_of_cluster, cluster)
+            W_to_heatmap_simple(path, number_of_cluster, cluster, c, d)
+    
+    
+    

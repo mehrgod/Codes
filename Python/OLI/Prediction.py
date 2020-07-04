@@ -48,6 +48,37 @@ def split_sk(path, per, n):
     fwtr.close()
     fwte.close()
         
+def split_sk_val(path):
+    with open(path + "LabelSequence.txt", "rb") as f:
+        data = f.read().split('\n')
+        data = np.array(data)  #convert array to numpy type array
+        
+    x_train, x_test = train_test_split(data, test_size = 0.1)
+    x_train, x_val = train_test_split(x_train, test_size = 0.115)
+        
+    dir = path + 'val/'
+    
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+    
+    fwtr = open(dir + 'train.txt', 'w')
+    fwte = open(dir + 'test-100.txt', 'w')
+    fwval = open(dir + 'val.txt', 'w')
+    
+    for x in x_train:
+        if len(x) > 0:
+            fwtr.write(x.strip() + '\n')
+            
+    for x in x_test:
+        if len(x) > 0:
+            fwte.write(x.strip() + '\n')
+    
+    for x in x_val:
+        if len(x) > 0:
+            fwval.write(x.strip() + '\n')
+            
+    fwtr.close()
+    fwte.close()
     
 def split_perf(path, filename):
     
@@ -202,32 +233,46 @@ def predict(path, n , c , d):
     
     file_name = "VectorNormal1-" + str(n)
     
+    fwr = open(path + file_name + "-Mult.txt", "w")
+    
+    fwl = open(path + file_name + "-label.txt", "w")
+    
     with open(path + file_name + ".txt") as file:
         for line in file:
             id = line.split('\t')[0]
             array = [float(digit) for digit in line.split('\t')[1].split(',')]
             test = np.array(array)
             res = np.dot(test, train)
+            out = ''
+            for r in res:
+                out = out + ',' + str(r)
+            fwr.write(out[1:] + '\n')
             perf = dic.get(id)
             lo = 0
             hi = 0
-            #for i in range(3, 14):
             for i in range(c, c+d):
                 lo = lo + res[i]
-            #for i in range(14, 25):
             for i in range(c+d, c+d+d):
                 hi = hi + res[i]
+            pred = ''
+            if perf == 'm':
+                continue
             if perf == 'h':
                 if hi >= lo:
                     TP = TP + 1
+                    pred = 'h'
                 else:
                     FP = FP + 1
+                    pred = 'l'
             if perf == 'l':
                 if lo >= hi:
                     TN = TN + 1
+                    pred = 'l'
                 else:
                     FN = FN + 1
+                    pred= 'h'
             #print array_to_str(res)
+            fwl.write(perf + ', ' + pred + '\n')
     print "TP: ", TP
     print "TN: ", TN
     print "FP: ", FP
@@ -253,7 +298,8 @@ def predict(path, n , c , d):
 
         
     fw.close()
-    
+    fwr.close()
+    fwl.close()
 
 def count_performance(path ,n):
     dic = {}
@@ -395,7 +441,6 @@ def find_perf_test(path, n):
     
 
 def H_avg_var(pathin, pathout, filename):
-    #dir = path + 'KNN-latent'
     dir = pathout
     if not os.path.exists(dir):
         os.mkdir(dir)
@@ -411,7 +456,7 @@ def H_avg_var(pathin, pathout, filename):
     #np.savetxt(path + 'KNN-latent/' + filename + '-var.txt', var, delimiter = ',', newline = " ")
     np.savetxt(pathout + filename + '-avg.txt', avg, delimiter = ',', newline = " ")
     np.savetxt(pathout + filename + '-var.txt', var, delimiter = ',', newline = " ")
-        
+    
     
 def predict_knn_latent(path, n):
     
@@ -530,7 +575,7 @@ def predict_knn_latent_test(path, pathn, n):
         for line in file:
             id, pre, post, lg, avg = line.split('\t')
             #id, pre, post, lg = line.split('\t')
-            dic[id] = lg
+            dic[id] = lg.strip()
     
     label = []
     predict = []
@@ -562,16 +607,21 @@ def predict_knn_latent_test(path, pathn, n):
     
     file_name = "VectorNormal1-" + str(n)
     
-    with open(path + file_name + ".txt") as file:
+    with open(path[:-24] + file_name + ".txt") as file:
         for line in file:
             id = line.split('\t')[0]
             perf = dic.get(id)
             
-            if perf == 'h':
+            #print perf.strip()
+            
+            if perf.strip() == 'h':
                 lbl = 0
-            elif perf == 'l':
+                #print 'h'
+            elif perf.strip() == 'l':
                 lbl = 1
+                #print 'l'
             else:
+                #print 'm'
                 continue
             
             label.append(lbl)
@@ -579,25 +629,52 @@ def predict_knn_latent_test(path, pathn, n):
             array = [float(digit) for digit in line.split('\t')[1].split(',')]
             test = np.array(array)
             
+            test.shape
+            
             #resW1 = np.dot(test, W1)
             #resW2 = np.dot(test, W2)
             
             resW1 = np.dot(np.linalg.pinv(W1, rcond = 0.0), test)
             resW2 = np.dot(np.linalg.pinv(W2, rcond = 0.0), test)
+            
+            #print 'resW1', resW1
+            #print 'resW2', resW2
+            
             '''
             print 'resW1 ', resW1.shape
             print 'H1 ', H1.shape
             '''
             
             temp = np.subtract(resW1, H1)
+            
+            #print 'H1', temp
+            
             dis1 = 0
+            
+            V1s = ''
+            
             for i in range(0, len(temp)):
-                dis1 = dis1 + np.square(temp[i] / H1v[i])
+                #dis1 = dis1 + np.square(temp[i] / H1v[i])
+                dis1 = dis1 + np.square(temp[i] / np.sqrt(H1v[i]))
+                V1s = V1s + ',' + str(temp[i] / np.sqrt(H1v[i]))
+                
+            #print 'V1s', V1s
+            
             temp = np.subtract(resW2, H2)
+            
+            #print 'H2', temp
+            
+            V2s = ''
             
             dis2 = 0
             for i in range(0, len(temp)):
-                dis2 = dis2 + np.square(temp[i] / H2v[i])
+                #dis2 = dis2 + np.square(temp[i] / H2v[i])
+                dis2 = dis2 + np.square(temp[i] / np.sqrt(H2v[i]))
+                V2s = V2s + ',' + str(temp[i] / np.sqrt(H2v[i]))
+            
+            #print 'V2s', V2s
+            #print 'dis1', dis1
+            #print 'dis2', dis2
             
             #dis1 = distance_euc(resW1, H1)
             #print dis1
@@ -611,19 +688,38 @@ def predict_knn_latent_test(path, pathn, n):
                 pred = 1
                 
             predict.append(pred)
+            
+            #print lbl
             #print pred
+            
+            #print '---------------'
+            
             
             
     pred = np.array(predict)
     labl = np.array(label)
     
+    #print pred
+    #print labl
+    
     score = metrics.accuracy_score(labl, pred)
+    
+    
+    fw = open(pathn + 'con_' + str(n) + '_res.txt', "w")
+    
+    fw.write(str(resW1) + '\n')
+
+    
     tn, fp, fn, tp = metrics.confusion_matrix(labl, pred).ravel()
         
     #dir = pathn + 'KNN-latent-dis/8/'
     #if not os.path.exists(dir):
     #    os.mkdir(dir)
         
+    
+    print tp, tn, fp, fn, score
+    
+    '''
     fw = open(pathn + 'con_' + str(n) + '_res.txt', "w")
 
 
@@ -632,10 +728,708 @@ def predict_knn_latent_test(path, pathn, n):
     fw.write(str(fp) + "\n")
     fw.write(str(fn) + "\n")
     fw.write(str(score))
+        
+    fw.close()
+    '''
+    
+def predict_latent_val(path, pathn):
+    
+    with open(path + 'W1.csv') as fw1:
+        array = list(csv.reader(fw1, quoting=csv.QUOTE_NONNUMERIC))
+    W1 = np.array(array)
+    
+    with open(path + 'W2.csv') as fw2:
+        array = list(csv.reader(fw2, quoting=csv.QUOTE_NONNUMERIC))
+    W2 = np.array(array)
+    
+    dic = {}
+    
+    #print path[:-34]
+    #with open(path[:-34] + "perfAll.txt") as file:
+    with open(path + "perfAll.txt") as file:
+        for line in file:
+            id, pre, post, lg, avg = line.split('\t')
+            #id, pre, post, lg = line.split('\t')
+            dic[id] = lg.strip()
+    
+    label = []
+    predict = []
 
+    
+    with open(pathn + 'H1-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1 = np.array(float_seq)
+    
+    with open(pathn + 'H2-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2 = np.array(float_seq)
+    
+    
+    '''
+    with open(pathn + 'H1-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1v = np.array(float_seq)
+    
+    with open(pathn + 'H2-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2v = np.array(float_seq)
+    '''
+    
+    file_name = "VectorNormal1-val"
+    
+    #with open(path[:-24] + file_name + ".txt") as file:
+    #with open(path[:-30] + file_name + ".txt") as file:
+    with open(path + file_name + ".txt") as file:
+        for line in file:
+            id = line.split('\t')[0]
+            perf = dic.get(id)
+            
+            if perf.strip() == 'h':
+                lbl = 0
+            elif perf.strip() == 'l':
+                lbl = 1
+            else:
+                continue
+            
+            label.append(lbl)
+            
+            array = [float(digit) for digit in line.split('\t')[1].split(',')]
+            test = np.array(array)
+            
+            test.shape
+            
+            resW1 = np.dot(np.linalg.pinv(W1, rcond = 0.0), test)
+            resW2 = np.dot(np.linalg.pinv(W2, rcond = 0.0), test)
+            
+            temp = np.subtract(resW1, H1)
+            
+            dis1 = 0
+            
+            for i in range(0, len(temp)):
+                #dis1 = dis1 + np.square(temp[i] / H1v[i])
+                #dis1 = dis1 + np.square(temp[i] / np.sqrt(H1v[i]))
+                #dis1 = dis1 + temp[i] / np.sqrt(H1v[i])
+                #dis1 = dis1 + abs(temp[i])
+                dis1 = dis1 + temp[i] * temp[i]
+                #V1s = V1s + ',' + str(temp[i] / np.sqrt(H1v[i]))
+                
+            #print 'V1s', V1s
+            
+            #temp = np.subtract(resW2[:10], H2d)
+            temp = np.subtract(resW2, H2)
+            
+            #V2s = ''
+            
+            dis2 = 0
+            for i in range(0, len(temp)):
+                #dis2 = dis2 + np.square(temp[i] / H2v[i])
+                #dis2 = dis2 + np.square(temp[i] / np.sqrt(H2v[i]))
+                #dis2 = dis2 + temp[i] / np.sqrt(H2v[i])
+                #dis2 = dis2 + abs(temp[i])
+                dis2 = dis2 + temp[i] * temp[i]
+                #V2s = V2s + ',' + str(temp[i] / np.sqrt(H2v[i]))
+            
+            #print 'V2s', V2s
+            #print 'dis1', dis1
+            #print 'dis2', dis2
+            
+            #dis1 = distance_euc(resW1, H1)
+            #print dis1
+            #dis2 = distance_euc(resW2, H2)
+            #print dis2
+            
+            
+            if (dis1 > dis2):
+                pred = 0
+            else:
+                pred = 1
+                
+            predict.append(pred)
+            
+            #print lbl
+            #print pred
+            
+            #print '---------------'
+            
+            
+            
+    pred = np.array(predict)
+    labl = np.array(label)
+    
+    score = metrics.accuracy_score(labl, pred)
+    
+    fw = open(pathn + 'con_val_res.txt', "w")
+    
+    tn, fp, fn, tp = metrics.confusion_matrix(labl, pred).ravel()
+        
+    #print tp, tn, fp, fn, score
+    #print tp
+    #print tn
+    #print fp
+    #print fn
+    print score
+    
+    fw.write(str(tp) + "\n")
+    fw.write(str(tn) + "\n")
+    fw.write(str(fp) + "\n")
+    fw.write(str(fn) + "\n")
+    fw.write(str(score))
+        
+    fw.close()
+    
+def predict_latent_val_d(path, pathn):
+    
+    with open(path + 'W1.csv') as fw1:
+        array = list(csv.reader(fw1, quoting=csv.QUOTE_NONNUMERIC))
+    W1 = np.array(array)
+    
+    with open(path + 'W2.csv') as fw2:
+        array = list(csv.reader(fw2, quoting=csv.QUOTE_NONNUMERIC))
+    W2 = np.array(array)
+    
+    dic = {}
+    
+    #print path[:-34]
+    #with open(path[:-34] + "perfAll.txt") as file:
+    with open(path + "perfAll.txt") as file:
+        for line in file:
+            id, pre, post, lg, avg = line.split('\t')
+            #id, pre, post, lg = line.split('\t')
+            dic[id] = lg.strip()
+    
+    label = []
+    predict = []
+
+    with open(pathn + 'H1d-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1d = np.array(float_seq)
+    
+    with open(pathn + 'H2d-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2d = np.array(float_seq)
+    
+
+    
+    '''
+    with open(pathn + 'H1-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1v = np.array(float_seq)
+    
+    with open(pathn + 'H2-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2v = np.array(float_seq)
+    '''
+    
+    file_name = "VectorNormal1-100"
+    
+    #with open(path[:-24] + file_name + ".txt") as file:
+    #with open(path[:-30] + file_name + ".txt") as file:
+    with open(path + file_name + ".txt") as file:
+        for line in file:
+            id = line.split('\t')[0]
+            perf = dic.get(id)
+            
+            if perf.strip() == 'h':
+                lbl = 0
+            elif perf.strip() == 'l':
+                lbl = 1
+            else:
+                continue
+            
+            label.append(lbl)
+            
+            array = [float(digit) for digit in line.split('\t')[1].split(',')]
+            test = np.array(array)
+            
+            test.shape
+            
+            #resW1 = np.dot(test, W1)
+            #resW2 = np.dot(test, W2)
+            
+            resW1 = np.dot(np.linalg.pinv(W1, rcond = 0.0), test)
+            resW2 = np.dot(np.linalg.pinv(W2, rcond = 0.0), test)
+            
+            #print 'resW1', resW1
+            #print 'resW2', resW2
+            
+            '''
+            print 'resW1 ', resW1.shape
+            print 'H1 ', H1.shape
+            '''
+            
+            temp = np.subtract(resW1[:10], H1d)
+            
+            #print 'H1', temp
+            
+            dis1 = 0
+            
+            
+            for i in range(0, len(temp)):
+                #dis1 = dis1 + np.square(temp[i] / H1v[i])
+                #dis1 = dis1 + np.square(temp[i] / np.sqrt(H1v[i]))
+                #dis1 = dis1 + temp[i] / np.sqrt(H1v[i])
+                #dis1 = dis1 + abs(temp[i])
+                dis1 = dis1 + temp[i] * temp[i]
+                #V1s = V1s + ',' + str(temp[i] / np.sqrt(H1v[i]))
+                
+            
+            temp = np.subtract(resW2[:10], H2d)
+            
+            dis2 = 0
+            for i in range(0, len(temp)):
+                #dis2 = dis2 + np.square(temp[i] / H2v[i])
+                #dis2 = dis2 + np.square(temp[i] / np.sqrt(H2v[i]))
+                #dis2 = dis2 + temp[i] / np.sqrt(H2v[i])
+                #dis2 = dis2 + abs(temp[i])
+                dis2 = dis2 + temp[i] * temp[i]
+                #V2s = V2s + ',' + str(temp[i] / np.sqrt(H2v[i]))
+            
+            if (dis1 > dis2):
+                pred = 0
+            else:
+                pred = 1
+                
+            predict.append(pred)
+            
+            
+            
+    pred = np.array(predict)
+    labl = np.array(label)
+    
+    score = metrics.accuracy_score(labl, pred)
+    
+    fw = open(pathn + 'con_val_res.txt', "w")
+    
+    tn, fp, fn, tp = metrics.confusion_matrix(labl, pred).ravel()
+        
+    #print tp, tn, fp, fn, score
+    #print tp
+    #print tn
+    #print fp
+    #print fn
+    print score
+    
+    fw.write(str(tp) + "\n")
+    fw.write(str(tn) + "\n")
+    fw.write(str(fp) + "\n")
+    fw.write(str(fn) + "\n")
+    fw.write(str(score))
+        
+    fw.close()
+    
+
+
+
+def predict_latent_euc(path, pathn):
+    
+    with open(path + 'W1.csv') as fw1:
+        array = list(csv.reader(fw1, quoting=csv.QUOTE_NONNUMERIC))
+    W1 = np.array(array)
+    
+    with open(path + 'W2.csv') as fw2:
+        array = list(csv.reader(fw2, quoting=csv.QUOTE_NONNUMERIC))
+    W2 = np.array(array)
+    
+    dic = {}
+    
+    print path[:-34]
+    with open(path[:-34] + "perfAll.txt") as file:
+        for line in file:
+            id, pre, post, lg, avg = line.split('\t')
+            #id, pre, post, lg = line.split('\t')
+            dic[id] = lg.strip()
+    
+    label = []
+    predict = []
+
+
+    with open(pathn + 'H1-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1 = np.array(float_seq)
+    
+    with open(pathn + 'H2-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2 = np.array(float_seq)
+    
+    with open(pathn + 'H1-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1v = np.array(float_seq)
+    
+    with open(pathn + 'H2-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2v = np.array(float_seq)
+    
+    file_name = "VectorNormal1-val"
+    
+    #with open(path[:-24] + file_name + ".txt") as file:
+    with open(path[:-30] + file_name + ".txt") as file:
+        for line in file:
+            id = line.split('\t')[0]
+            perf = dic.get(id)
+            
+            #print perf.strip()
+            
+            if perf.strip() == 'h':
+                lbl = 0
+                #print 'h'
+            elif perf.strip() == 'l':
+                lbl = 1
+                #print 'l'
+            else:
+                #print 'm'
+                continue
+            
+            label.append(lbl)
+            
+            array = [float(digit) for digit in line.split('\t')[1].split(',')]
+            test = np.array(array)
+            
+            resW1 = np.dot(np.linalg.pinv(W1, rcond = 0.0), test)
+            resW2 = np.dot(np.linalg.pinv(W2, rcond = 0.0), test)
+            
+            #print resW1.shape
+            #print H1.shape
+            
+            dis1 = distance_euc(resW1, H1)
+            dis2 = distance_euc(resW2, H2)
+            
+            #print d1, d2
+            #temp = np.subtract(resW1, H1)
+            '''
+            dis1 = 0
+            
+            #V1s = ''
+            
+            for i in range(0, len(temp)):
+                #dis1 = dis1 + np.square(temp[i] / H1v[i])
+                #dis1 = dis1 + np.square(temp[i] / np.sqrt(H1v[i]))
+                dis1 = dis1 + temp[i] / np.sqrt(H1v[i])
+                #dis1 = dis1 + temp[i]
+                #V1s = V1s + ',' + str(temp[i] / np.sqrt(H1v[i]))
+                
+            #print 'V1s', V1s
+            
+            temp = np.subtract(resW2, H2)
+            
+            #print 'H2', temp
+            
+            #V2s = ''
+            
+            dis2 = 0
+            for i in range(0, len(temp)):
+                #dis2 = dis2 + np.square(temp[i] / H2v[i])
+                #dis2 = dis2 + np.square(temp[i] / np.sqrt(H2v[i]))
+                dis2 = dis2 + temp[i] / np.sqrt(H2v[i])
+                #dis2 = dis2 + temp[i]
+                #V2s = V2s + ',' + str(temp[i] / np.sqrt(H2v[i]))
+            
+            #print 'V2s', V2s
+            #print 'dis1', dis1
+            #print 'dis2', dis2
+            
+            #dis1 = distance_euc(resW1, H1)
+            #print dis1
+            #dis2 = distance_euc(resW2, H2)
+            #print dis2
+            
+            '''
+            if (dis1 > dis2):
+                pred = 0
+            else:
+                pred = 1
+                
+            predict.append(pred)
+            
+            #print lbl
+            #print pred
+            
+            #print '---------------'
+            
+            
+    
+    pred = np.array(predict)
+    labl = np.array(label)
+    
+    #print pred
+    #print labl
+    
+    score = metrics.accuracy_score(labl, pred)
+    
+    fw = open(pathn + 'con_val_res.txt', "w")
+    
+    tn, fp, fn, tp = metrics.confusion_matrix(labl, pred).ravel()
+        
+    print tp, tn, fp, fn, score
+    
+    fw.write(str(tp) + "\n")
+    fw.write(str(tn) + "\n")
+    fw.write(str(fp) + "\n")
+    fw.write(str(fn) + "\n")
+    fw.write(str(score))
+        
+    fw.close()
+    
+
+
+def predict_latent_mu(path, pathn):
+    
+    with open(path + 'W1.csv') as fw1:
+        array = list(csv.reader(fw1, quoting=csv.QUOTE_NONNUMERIC))
+    W1 = np.array(array)
+    
+    with open(path + 'W2.csv') as fw2:
+        array = list(csv.reader(fw2, quoting=csv.QUOTE_NONNUMERIC))
+    W2 = np.array(array)
+    
+    dic = {}
+    
+    print path[:-34]
+    with open(path[:-34] + "perfAll.txt") as file:
+        for line in file:
+            id, pre, post, lg, avg = line.split('\t')
+            #id, pre, post, lg = line.split('\t')
+            dic[id] = lg.strip()
+    
+    label = []
+    predict = []
+
+
+    with open(pathn + 'H1-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1 = np.array(float_seq)
+    
+    with open(pathn + 'H2-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2 = np.array(float_seq)
+    
+    with open(pathn + 'H1-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1v = np.array(float_seq)
+    
+    with open(pathn + 'H2-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2v = np.array(float_seq)
+    
+    file_name = "VectorNormal1-val"
+    
+    #with open(path[:-24] + file_name + ".txt") as file:
+    with open(path[:-30] + file_name + ".txt") as file:
+        for line in file:
+            id = line.split('\t')[0]
+            perf = dic.get(id)
+            
+            #print perf.strip()
+            
+            if perf.strip() == 'h':
+                lbl = 0
+                #print 'h'
+            elif perf.strip() == 'l':
+                lbl = 1
+                #print 'l'
+            else:
+                #print 'm'
+                continue
+            
+            label.append(lbl)
+            
+            array = [float(digit) for digit in line.split('\t')[1].split(',')]
+            test = np.array(array)
+            
+            test.shape
+            
+            resW1 = np.dot(np.linalg.pinv(W1, rcond = 0.0), test)
+            resW2 = np.dot(np.linalg.pinv(W2, rcond = 0.0), test)
+            
+            temp = np.subtract(resW1, H1)
+            
+            dis1 = 0
+            
+            for i in range(0, len(temp)):
+                dis1 = dis1 + np.square(temp[i] / np.sqrt(H1v[i]))
+                
+            temp = np.subtract(resW2, H2)
+            
+            dis2 = 0
+            for i in range(0, len(temp)):
+                dis2 = dis2 + np.square(temp[i] / np.sqrt(H2v[i]))
+            
+            
+            if (dis1 > dis2):
+                pred = 0
+            else:
+                pred = 1
+                
+            predict.append(pred)
+            
+    pred = np.array(predict)
+    labl = np.array(label)
+    
+    score = metrics.accuracy_score(labl, pred)
+    
+    fw = open(pathn + 'con_val_res.txt', "w")
+    
+    tn, fp, fn, tp = metrics.confusion_matrix(labl, pred).ravel()
+        
+    print tp, tn, fp, fn, score
+    
+    fw.write(str(tp) + "\n")
+    fw.write(str(tn) + "\n")
+    fw.write(str(fp) + "\n")
+    fw.write(str(fn) + "\n")
+    fw.write(str(score))
         
     fw.close()
 
+
+def predict_knn_latent_test_d(path, pathn, n):
+    
+    with open(path + 'W1d.csv') as fw1:
+        array = list(csv.reader(fw1, quoting=csv.QUOTE_NONNUMERIC))
+    W1 = np.array(array)
+    
+    with open(path + 'W2d.csv') as fw2:
+        array = list(csv.reader(fw2, quoting=csv.QUOTE_NONNUMERIC))
+    W2 = np.array(array)
+    
+    dic = {}
+    
+    with open(path + "perfAll.txt") as file:
+        for line in file:
+            id, pre, post, lg, avg = line.split('\t')
+            #id, pre, post, lg = line.split('\t')
+            dic[id] = lg.strip()
+    
+    label = []
+    predict = []
+
+
+    with open(pathn + 'H1d-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1 = np.array(float_seq)
+    
+    with open(pathn + 'H2d-avg.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2 = np.array(float_seq)
+    
+    with open(pathn + 'H1d-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H1v = np.array(float_seq)
+    
+    with open(pathn + 'H2d-var.txt') as file:
+        for line in file:
+            seq = line.split()
+            float_seq = [float(i) for i in seq]
+    H2v = np.array(float_seq)
+    
+    file_name = "VectorNormal1-" + str(n)
+    
+    with open(path[:-24] + file_name + ".txt") as file:
+        for line in file:
+            id = line.split('\t')[0]
+            perf = dic.get(id)
+            
+            if perf.strip() == 'h':
+                lbl = 0
+            elif perf.strip() == 'l':
+                lbl = 1
+            else:
+                continue
+            
+            label.append(lbl)
+            
+            array = [float(digit) for digit in line.split('\t')[1].split(',')]
+            test = np.array(array)
+            
+            test.shape
+            
+            
+            resW1 = np.dot(np.linalg.pinv(W1, rcond = 0.0), test)
+            resW2 = np.dot(np.linalg.pinv(W2, rcond = 0.0), test)
+            
+            '''
+            print 'resW1 ', resW1.shape
+            print 'H1 ', H1.shape
+            '''
+            
+            temp = np.subtract(resW1, H1)
+            
+            dis1 = 0
+            for i in range(0, len(temp)):
+                dis1 = dis1 + np.square(temp[i] / H1v[i])
+            
+            temp = np.subtract(resW2, H2)
+            
+            dis2 = 0
+            for i in range(0, len(temp)):
+                dis2 = dis2 + np.square(temp[i] / H2v[i])
+            
+            #dis1 = distance_euc(resW1, H1)
+            #print dis1
+            #dis2 = distance_euc(resW2, H2)
+            #print dis2
+            
+            if (dis1 > dis2):
+                pred = 0
+            else:
+                pred = 1
+                
+            predict.append(pred)
+                     
+    pred = np.array(predict)
+    labl = np.array(label)
+    
+    score = metrics.accuracy_score(labl, pred)
+    
+    tn, fp, fn, tp = metrics.confusion_matrix(labl, pred).ravel()
+        
+    fw = open(pathn + 'con_' + str(n) + '_res.txt', "w")
+
+    fw.write(str(tp) + "\n")
+    fw.write(str(tn) + "\n")
+    fw.write(str(fp) + "\n")
+    fw.write(str(fn) + "\n")
+    fw.write(str(score))
+        
+    fw.close()
+    
 
 def predict_knn_latent_var(path, n):
     
@@ -759,6 +1553,89 @@ def predict_knn_latent_var(path, n):
         
     fw.close()
     fwd.close()
+
+def predict_simple(path, n):
+    with open(path + 'W1d.csv') as fw1d:
+        array = list(csv.reader(fw1d, quoting=csv.QUOTE_NONNUMERIC))
+    W1d = np.array(array)
+    
+    with open(path + 'W2d.csv') as fw2d:
+        array = list(csv.reader(fw2d, quoting=csv.QUOTE_NONNUMERIC))
+    W2d = np.array(array)
+    
+    with open(path + 'H1d.csv') as fh1d:
+        array = list(csv.reader(fh1d, quoting=csv.QUOTE_NONNUMERIC))
+    H1d = np.array(array)
+    
+    with open(path + 'H2d.csv') as fh2d:
+        array = list(csv.reader(fh2d, quoting=csv.QUOTE_NONNUMERIC))
+    H2d = np.array(array)
+    
+    dic = {}
+    
+    with open(path + "perfAll.txt") as file:
+        for line in file:
+            id, pre, post, lg, avg = line.split('\t')
+            #id, pre, post, lg = line.split('\t')
+            dic[id] = lg.strip()
+    
+    label = []
+    predict = []
+    
+    file_name = "VectorNormal1-" + str(n)
+    
+    with open(path[:-24] + file_name + ".txt") as file:
+        for line in file:
+            id = line.split('\t')[0]
+            perf = dic.get(id)
+                        
+            if perf.strip() == 'h':
+                lbl = 0
+            elif perf.strip() == 'l':
+                lbl = 1
+            else:
+                continue
+            
+            label.append(lbl)
+            
+            array = [float(digit) for digit in line.split('\t')[1].split(',')]
+            test = np.array(array)
+            
+            resW1 = np.dot(np.linalg.pinv(W1d, rcond = 0.0), test)
+            resW2 = np.dot(np.linalg.pinv(W2d, rcond = 0.0), test)
+            
+            dis1 = distance_euc(resW1, H1d)
+            print dis1
+            dis2 = distance_euc(resW2, H2d)
+            print dis2
+            
+            
+            if (dis1 > dis2):
+                pred = 0
+            else:
+                pred = 1
+                
+            predict.append(pred)
+                 
+    pred = np.array(predict)
+    labl = np.array(label)
+    
+    score = metrics.accuracy_score(labl, pred)
+      
+    tn, fp, fn, tp = metrics.confusion_matrix(labl, pred).ravel()
+    
+    fw = open(pathn + 'con_' + str(n) + '_res.txt', "w")
+
+
+    fw.write(str(tp) + "\n")
+    fw.write(str(tn) + "\n")
+    fw.write(str(fp) + "\n")
+    fw.write(str(fn) + "\n")
+    fw.write(str(score))
+
+        
+    fw.close()
+    
 
 def predict_knn_latent_var_1(path, n):
     
@@ -1883,21 +2760,24 @@ if __name__ == "__main__":
     #split_test(path)
     #normal(path)
     
-    
+    '''
     path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/4/0.5/'
     print path[:-6]
-    
-    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuParamTest/k20/c10d10/'
-    
+    '''
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdate/k20/c10d10/test/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdateFixD/k20/c10d10/test/'
+    '''
     c = 10
     d = 10
     for i in range(10,101,10):
+    #for i in range(110,111,10):
         print i
         #normal_test(path, i)
         #predict(path, i, c, d)
         #count_performance(path ,i)
-        
-    
+    '''
+    '''   
+    '''
     #predict(path)
     
     
@@ -1909,6 +2789,7 @@ if __name__ == "__main__":
     
     path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/'
     path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/'
     
     '''
     dir1 = ['1/','2/','3/','4/']
@@ -1921,6 +2802,8 @@ if __name__ == "__main__":
                 find_perf_test(pathn, i)
                 knn(pathn, i)
     '''
+    
+    #split_sk_val(path)
 
     '''
     for i in range(10, 101, 10):
@@ -1978,6 +2861,10 @@ if __name__ == "__main__":
     
     
     path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuParamTest/k20/c10d10/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdate/k20/c10d10/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdateFixep1/k20/c10d10/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdateFix3/k20/c10d10/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/MuUpdateFixD/k20/c10d10/'
     pathn = path + 'KNN-latent-mu/'
     
     '''
@@ -1985,12 +2872,87 @@ if __name__ == "__main__":
     for h in H:
         H_avg_var(path, pathn, h)
     '''
+    '''
+    H = ['H1d', 'H2d']
+    for h in H:
+        H_avg_var(path, pathn, h)
+    '''
     
-    
+    '''
     for i in range(10, 101, 10):
         #predict_knn_latent(path, i)
-        predict_knn_latent_test(path, pathn, i)
+        print i
+        #predict_knn_latent_test(path, pathn, i)
+        #predict_knn_latent_test_d(path, pathn, i)
+    '''
     
+    '''
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/MuUpdateFix100-050/k20/c10d10/'
+    pathn = path + 'KNN-latent-mu/'
+    
+    H = ['H1', 'H2']
+    for h in H:
+        H_avg_var(path, pathn, h)
+    
+    predict_latent_val(path, pathn)
+    '''
+    
+    '''
+    for e in range(75,125):
+        
+        if e / 100 < 1:
+            ep = '0' + str(e)
+        else:
+            ep = str(e)
+        
+        path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/MuUpdateFix100-' + ep + '/k20/c10d10/'
+    
+        
+        pathn = path + 'KNN-latent-mu/'
+        print pathn
+        
+        H = ['H1', 'H2']
+        for h in H:
+            H_avg_var(path, pathn, h)
+        
+        predict_latent_val(path, pathn)
+    '''    
+    
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/'
+    
+    lamda = '.01'
+    ep = '001'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/MuUpdateFix' + lamda + '-' + ep + '/k20/c10d10/'
+    
+    
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/euc/'
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/MuUpdateFix.01-100/k20/c10d10/'
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/MuUpdateFix001-900/k20/c10d10/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/MdUpdateFix001-900/k20/c10d10/'
+    pathn = path + 'KNN-latent-md/'
+    '''    
+    H = ['H1d', 'H2d']
+    for h in H:
+        H_avg_var(path, pathn, h)
+        
+    predict_latent_val(path, pathn)
+    
+    #predict_latent_euc(path, pathn)
+    '''    
+    
+    
+    '''
+    for e in range(100, 901, 100):
+        path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val/MuUpdateFix' + lamda + '-' + str(e) + '/k20/c10d10/'
+        pathn = path + 'KNN-latent-mu/'
+        print pathn
+        
+        H = ['H1', 'H2']
+        for h in H:
+            H_avg_var(path, pathn, h)
+        
+        predict_latent_val(path, pathn)
+    '''    
     
     
     '''
@@ -2004,3 +2966,28 @@ if __name__ == "__main__":
         #average_knn(path, per, n)
         #average_knn_latent_1(path, per, n)
     '''
+    '''
+    for ep in range(550, 651):
+        path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/va2/MuUpdateFix001-' + str(ep) + '/k20/c10d10/'
+        #print path
+        pathn = path + 'KNN-latent-mu/'
+    
+        H = ['H1d', 'H2d']
+        #H = ['H1', 'H2']
+        for h in H:
+            H_avg_var(path, pathn, h)
+    
+        predict_latent_val_d(path, pathn)
+        #predict_latent_val(path, pathn)
+    '''    
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val-ep627-train-val/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/val-ep627-best/res/k20/c10d10/'
+    
+    pathn = path + 'KNN-latent-mu/'
+    
+    #H = ['H1d', 'H2d']
+    H = ['H1', 'H2']
+    for h in H:
+        H_avg_var(path, pathn, h)
+    
+    predict_latent_val(path, pathn) 

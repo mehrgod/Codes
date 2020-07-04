@@ -16,6 +16,7 @@ import csv
 from sklearn.cluster import SpectralClustering
 from sklearn.cluster import KMeans
 import seaborn as sns
+from sklearn.cluster import DBSCAN
 
 
 def normal_s(path):
@@ -30,7 +31,9 @@ def normal_s(path):
     
     lower = 0
     #upper = 0.35
-    upper = 0.23
+    #upper = 0.23
+    upper = 1.0
+    
     
     m, n = B.shape
     
@@ -45,7 +48,7 @@ def normal_s(path):
     
     nB = np.reshape(l_norm, (m, n))
     
-    np.savetxt(path + "/newmp.csv", nB, delimiter=",")
+    np.savetxt(path + "/nmp.csv", nB, delimiter=",")
     
     print nB
 
@@ -57,7 +60,8 @@ def normal_p(path):
     A = np.array(arr)
     
     lower = 0
-    upper = 0.3
+    #upper = 0.3
+    upper = 1.0
     
     m, n = A.shape
     
@@ -82,13 +86,15 @@ def create_matrix(path):
     
     p = []
     
-    with open(path + "pattern.txt") as file:
+    #with open(path + "pattern.txt") as file:
+    with open(path + "patternsTranslateFilterTFIDF.txt") as file:
         for line in file:
             p.append(line.strip())
     
     print p
     
-    fw = open(path + 'mp.txt', "w")
+    #fw = open(path + 'mp.txt', "w")
+    fw = open(path + 'newmp.txt', "w")
     
     for i in range(len(p)):
         row = ''
@@ -501,10 +507,19 @@ def concateWcWd(path):
     
     np.savetxt(path + "W1cW2cW1dW2d.csv", w, delimiter=",")
     
+    fw = open(path + "train-W.txt", "w")
+    
+    for row in w:
+        out = ''
+        for i in row:
+            out = out + ',' + "{:.8f}".format(i)
+        fw.write(out[1:] + '\n')
+    
     fw1c.close()
     fw2c.close()
     fw1d.close()
-    fw2d.close()  
+    fw2d.close()
+    fw.close()
 
 def spectral(path, n):
     #path = 'C:/Project/EDU/files/2013/example/Topic/60/LG/6040i10-2/1/k15/c10d5/'
@@ -596,6 +611,46 @@ def kmeans(path, n):
     #fwm.close()
     f.close()
     
+
+def dbscan(path):
+    
+    with open(path + 'W1cW2cW1dW2d.csv') as f:
+        array2d = list(csv.reader(f, quoting=csv.QUOTE_NONNUMERIC))
+        
+    X = np.array(array2d)
+    
+    print (X.shape)
+    
+    ptrn = []
+    with open(path + 'patternsTranslateFilterTFIDF.txt') as patterns:
+        for p in patterns:
+            t = p.split('\t')[0]
+            ptrn.append(t)
+
+    #clustering = SpectralClustering(n_clusters=n, assign_labels="discretize", random_state=0).fit(X)
+    clustering = DBSCAN(eps=10, min_samples=1).fit(X)
+    
+    labels = clustering.labels_
+    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+    print('Estimated number of clusters: %d' % n_clusters_)
+    
+    pathc = path + "dbscan/"
+    
+    if (os.path.isdir(pathc) == False):
+        os.mkdir(pathc)
+        
+    fw = open(pathc + "dbscan_" + str(n_clusters_) + ".txt", "w")
+    fwc = open(pathc + str(n_clusters_) + ".txt", "w")
+        
+    for l in range(len(clustering.labels_)):
+        fw.write(ptrn[l] + "\t" + str(clustering.labels_[l]) + "\n")
+        fwc.write(str(clustering.labels_[l]) + "\n")
+
+    fw.close()
+    fwc.close()
+    f.close()
+    
+    return n_clusters_
 
 def prepare_cluster(path, num_of_cluster):
     
@@ -775,7 +830,7 @@ def W_to_heatmap(path, num_of_cluster, clustering, c, d):
     #clustering = 'kmeans'
     #clustering = 'Spectral'
     
-    intensity = 0.1
+    intensity = 0.5
     X = [intensity]
         
     record = [[] for i in range(3)]
@@ -1209,8 +1264,10 @@ if __name__ == "__main__":
     #path = "C:/Project/EDU/files/2013/example/Topic/similarity/"
     path = "C:/Project\EDU/OLI_175318/"
     
-    #create_matrix(path)
-    #normal_s(path)
+    path = "C:/Project/EDU/files/2013/example/Topic/60/fix/"
+    
+    create_matrix(path)
+    normal_s(path)
     
     
     #normal_p(path)
@@ -1286,43 +1343,63 @@ if __name__ == "__main__":
     
     path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/testNewAll/k20/c10d10/'
     
-    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuParamTest/k20/c10d10/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdate/k20/c10d10/'
+    path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdateFixE/k20/c10d10/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/MuUpdateFixD/k20/c10d10/'
+    #path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/MuUpdate2/k20/c10d10/'
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/1/0.1/MuUpdateStructure/k20/c10d10/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/testMuSimPlus/k20/c10d10/'
-    
-    concateWcWd(path)
-    for i in range(1,7):
-        spectral(path, i)
-        kmeans(path, i)
     
     c = 10
     d = 10
+    '''
+    concateWcWd(path)
+    
+    for i in range(1,7):
+        spectral(path, i)
+        kmeans(path, i)
+    '''
+    
+    
+    #clstr = 'dbscan'
+    
+    #number_of_cluster = str(dbscan(path))
+    
+    #W_to_plot(path, number_of_cluster, clstr)
+    #W_to_heatmap(path, number_of_cluster, clstr, c, d)
+    
+    
     #clustering = 'kmeans'
     #clustering = 'Spectral'
-    
+    '''
     clustering = ['Spectral', 'kmeans']
     
     
-    #cluster = ['2','3','4','5','6']
-    cluster = ['6']
+    cluster = ['2','3','4','5','6']
+    #cluster = ['6']
     for number_of_cluster in cluster:
         #prepare_cluster(path, number_of_cluster) #depricated
-        for cluster in clustering:
-            W_to_plot(path, number_of_cluster, cluster)
-            W_to_heatmap(path, number_of_cluster, cluster, c, d)
+        for clstr in clustering:
+            W_to_plot(path, number_of_cluster, clstr)
+            W_to_heatmap(path, number_of_cluster, clstr, c, d)
+    '''
+    
     
     
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/Spectral/6/'
     path = 'C:/Project/EDU/files/2013/example/Topic/similarity/grid_nmp_con/a0.6b0.1d0.9-k20-c12d8-1000/k20/c12d8/'
+    path = 'C:/Project/EDU/files/2013/example/Topic/60/predictionFilter2/1/0.1/MuUpdate/k20/c10d10/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/baseline-error/k20/c10d10/'
     #path = 'C:/Project/EDU/files/2013/example/Topic/similarity/evaluation/'
+    path = ''
     
     #plot_similarity(path)
     #plot_correlation(path)
     #plot_error(path)
     #heatmap_f(path)
     #heatmap_H(path)
-    #create_matrix(path)
-    #normal_s(path)
+    create_matrix(path)
+    normal_s(path)
     
     #number_of_cluster = '6'
     #W_to_heatmap(path, number_of_cluster, c=2, d=17)
