@@ -1,0 +1,8 @@
+K: 20
+Kc: 10
+alpha: 1.0
+beta: 1.0
+gama: 1.0
+lamda: 0.1
+eps: 10.0
+reg: 0.01

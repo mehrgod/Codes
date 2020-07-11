@@ -103,7 +103,9 @@ def normal_s(path):
     B = maxA - A
     
     lower = 0
-    upper = 0.2
+    upper = 0.15
+    
+    upper1 = 1
     
     m, n = B.shape
     
@@ -115,10 +117,13 @@ def normal_s(path):
     maxl = float(np.amax(l))
     
     l_norm = [ (upper - lower) * (x - minl) / (maxl - minl) + lower for x in l]
+    l_norm1= [ (upper1- lower) * (x - minl) / (maxl - minl) + lower for x in l]
     
     nB = np.reshape(l_norm, (m, n))
+    nB1= np.reshape(l_norm1,(m, n))
     
     np.savetxt(path + "/nmp.csv", nB, delimiter=",")
+    np.savetxt(path + "/nmp1.csv", nB1, delimiter=",")
     
     print nB
 
@@ -181,9 +186,12 @@ def W_to_plot(path, num_of_cluster, clustering):
     
     avgstv = np.vstack((avgs, stvs))
     
-    np.savetxt(new_path + 'all.csv' , avgstv, delimiter=",")
+    #np.savetxt(new_path + 'all.csv' , avgstv, delimiter=",")
     
-    fw = open(new_path + '/cluster_order.txt', "w")
+    #fw = open(new_path + '/cluster_order.txt', "w")
+    fwa = open(new_path + '/avg.txt', "w")
+    fwc = open(new_path + '/ci.txt', "w")
+    
     
     plt.figure(figsize = (20,10))
     
@@ -197,21 +205,34 @@ def W_to_plot(path, num_of_cluster, clustering):
             index.append(ix)
             ix = ix + 1
         
+        fwa.write(array_to_string(avg[i]) + '\n')
+        fwc.write( ','.join([str(c) for c in ci]) + '\n')
+        
         plt.errorbar(index, 
                      avg[i], 
                      ci, 
                      capsize = 5,
                      #linestyle='None',
                      label = 'Cluster' + clusters[i],
+                     #label = 'Cluster' + str(ix),
                      capthick=1, linewidth=2, elinewidth=1)
         
         plt.legend()
-        fw.write(clusters[i] + '\t' + str(m) + '\n')
+        #fw.write(clusters[i] + '\t' + str(m) + '\n')
     
-    plt.savefig(new_path + 'clusters.pdf')
+    #plt.savefig(new_path + 'clusters.pdf')
     plt.savefig(new_path + 'clusters.png')
     
-    fw.close()
+    #fw.close()
+    fwa.close()
+    fwc.close()
+
+def array_to_string(arr):
+    out = ''
+    for a in arr:
+        out = out + ',' + str(a)
+    return out[1:]
+    
 
 def W_to_plot_f(path, num_of_cluster, clustering):
     
@@ -257,7 +278,7 @@ def W_to_plot_f(path, num_of_cluster, clustering):
         avg.append(avg_val)
         stv.append(stv_val)
         
-        np.savetxt(new_path + clusters[i] + '.csv', raw, delimiter=",")
+        np.savetxt(new_path + clusters[i] + '_f.csv', raw, delimiter=",")
         
     avgs = np.vstack(avg)
     stvs = np.vstack(stv)
@@ -267,6 +288,8 @@ def W_to_plot_f(path, num_of_cluster, clustering):
     np.savetxt(new_path + 'all.csv' , avgstv, delimiter=",")
     
     fw = open(new_path + '/cluster_order.txt', "w")
+    fwf = open(new_path + '/f.txt', "w")
+    
     
     plt.figure(figsize = (20,10))
     
@@ -280,6 +303,7 @@ def W_to_plot_f(path, num_of_cluster, clustering):
             index.append(ix)
             ix = ix + 1
         
+        fwf.write(str(avg[i]) + ',' + str(ci) + '\n')
         plt.errorbar(index, 
                      avg[i], 
                      ci, 
@@ -296,6 +320,55 @@ def W_to_plot_f(path, num_of_cluster, clustering):
     plt.savefig(new_path + 'clusters.png')
     
     fw.close()
+
+def W_to_plot_toof(path):
+    avg = []
+    with open(path + 'avg.txt') as avgf:
+        for line in avgf:
+            avg.append(np.fromstring(line,dtype=float,sep=','))
+    
+    ci = []
+    with open(path + 'ci.txt') as cif:
+        for line in cif:
+            ci.append(np.fromstring(line,dtype=float,sep=','))
+            
+    l = len(avg)
+    n = len(avg[1])
+    
+    ix = 0
+    
+    index = []
+    for j in range(n):
+        index.append(ix)
+        ix = ix + 1
+    
+    x = 0
+    
+    plt.figure(figsize = (15,8))
+    
+    #linestyles = [(0,(1,1)),(0,(5,5)),(0,(5,1)),(0, (3, 1, 1, 1, 1, 1)),(0, (3, 5, 1, 5)),(0, (3, 1, 1, 1))]
+    ls = ['solid','dashed','dashdot','dotted','solid','dashed']
+    
+    
+    for i in range(l):
+        x = x + 1
+        plt.errorbar(index,
+                     avg[i],
+                     ci[i],
+                     capsize = 5,
+                     label = 'Cluster ' + str(x),
+                     #linestyle = linestyles[x-1],
+                     linestyle = ls[x-1],
+                     capthick=1, linewidth=2, elinewidth=1
+                     )
+        plt.legend()
+    plt.grid()
+    
+    plt.savefig(path + 'cluster_f.pdf')
+    plt.savefig(path + 'cluster_f.png')
+    
+    avgf.close()
+    cif.close()
 
 def W_to_heatmap(path, num_of_cluster, clustering, c, d):
         
@@ -415,20 +488,10 @@ def W_to_heatmap_f(path, num_of_cluster, clustering, c, d):
 
 def W_to_heatmap_simple(path, num_of_cluster, clustering, c, d):
         
-    intensity = 0.2
-    X = [intensity]
-        
-    #record = [[] for i in range(3)]
+    #intensity = 0.2
     
     with open(path + 'W1cW2cW1dW2d.csv') as wf:
         W = list(csv.reader(wf, quoting=csv.QUOTE_NONNUMERIC))
-    '''
-    with open(path + 'W1cW2cW1dW2d.csv') as wf:
-        for line in wf:
-            arr = np.fromstring(line.strip(), dtype = float, sep = ',')
-            B = np.concatenate((arr[:c], X, arr[c:c+d], X, arr[c+d:]))
-            record[2].append(B)
-    '''        
     
     y_axis_label = []
     
@@ -436,41 +499,7 @@ def W_to_heatmap_simple(path, num_of_cluster, clustering, c, d):
         for line in ptrnfile:
             y_axis_label.append(line)
     
-        
-    '''
-    with open(path + clustering + '_' + num_of_cluster + '.txt') as clf:
-        for line in clf:
-            pattern, cl = line.split()
-            record[0].append(pattern.strip())
-            record[1].append(cl.strip())
-            
-    clusters = list(set(record[1]))
-    
-    l = len(clusters)
-    
-    y_axis_label = []
-    r = [[] for i in range(l)]
-    out = []
-    
-    for i in range(l):
-        for j in range(len(record[0])):
-            if record[1][j] == str(i):
-                y_axis_label.append(record[0][j])
-                r[int(record[1][j])].append(record[2][j])
-                out.append(record[2][j])
-        out.append(np.full((1, len(record[2][0])), intensity))
-        y_axis_label.append('')
-    
-    HM = np.vstack(out)
-    
-    m, n = HM.shape
-    
-    np.savetxt(path + clustering + '/' + num_of_cluster + '/heatmap.csv', HM[:m-1], delimiter=",")
-    fw = open(path + '/ptrn.txt', "w")
-    for p in y_axis_label:
-        fw.write(p + '\n')
-    fw.close()
-    '''
+
     sns.set()
     plt.figure(figsize = (10,20))
 
@@ -661,6 +690,9 @@ def stat_sf_histogram():
 
 if __name__ == "__main__":
     
+    matplotlib.rc_file_defaults()
+    
+    
     #path = "C:/Project/EDU/OLI_175318/update/step/sep/lg/k20c10d10/k20/c10d10/"
     #path = "C:/Project/EDU/OLI_175318/update/step/sep/tfidf/"
     #path = "C:/Project/EDU/OLI_175318/update/step/sep/tfidf/lg/k20c10d10/k20/c10d10/"
@@ -676,6 +708,9 @@ if __name__ == "__main__":
     path = "C:/Project/EDU/OLI_175318/update/step/sep/train-test/0.2/lg/grid/a0.5b1.0d1.4-k10-c3d7/k18/c7d11/"
     path = "C:/Project/EDU/OLI_175318/update/step/sep/train-test/0.1/lg/grid/a0.1b1.4d1.4-k12-c3d9/k12/c3d9/"
     path = "C:/Project/EDU/files/2013/example/Topic/60/fix/"
+    
+    path = "C:/Project/EDU/OLI_175318/update/step/sep/fix/";
+    path = "C:/Project/EDU/Statistics-ds1139/fix/"
     
     #stat_attempts_histogram()
     #stat_hint_histogram()
@@ -710,47 +745,64 @@ if __name__ == "__main__":
     path = 'C:/Project/EDU/OLI_175318/update/step/sep/lg/DNMF/k26/c19d7/'
     #concateWcWd(path)
     #concateW(path)
-    path = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/DNMF/k12/c3d9/'
+    #path = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/DNMF/k12/c3d9/'
+    #ppath = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/'
+    
+    #path = "C:/Project/EDU/Statistics-ds1139/fix/post/DNMF/k13/c4d9/"
+    #ppath = "C:/Project/EDU/Statistics-ds1139/fix/"
+    
+    path = "C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/a0.1b0.9d0.9/k19/c6d13/"
     ppath = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/'
     
-    path = "C:/Project/EDU/Statistics-ds1139/fix/post/DNMF/k13/c4d9/"
+    path = "C:/Project/EDU/Statistics-ds1139/fix/lg/s_a0.1b0.1d0.9/k20/c10d10/"
     ppath = "C:/Project/EDU/Statistics-ds1139/fix/"
-    #concateWcWd(path)
     
-    #for i in range(2,7):
+    path = "C:/Project/EDU/Statistics-ds1139/fix/lg/final/a10.0b10.0d1.0/k19/c4d15/"
+    ppath = "C:/Project/EDU/Statistics-ds1139/fix/"
+    '''
+    concateWcWd(path)
+    
+    for i in range(2,7):
     #for i in range(6,7):
-    #    spectral(path, ppath, i)
+        spectral(path, ppath, i)
     
-    
+    '''
     #clustering = 'kmeans'
     clustering = ['Spectral']
     
     #clustering = ['Spectral', 'kmeans']
     
     #path = 'C:/Project/EDU/OLI_175318/update/step/sep/train-test/method1/'
-    
+    path = "C:/Project/EDU/Statistics-ds1139/fix/lg/final/a10.0b10.0d1.0/k19/c4d15/Spectral/66/"
+    path = "C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/DNMF/k12/c3d9/Spectral/6/"
+    path = "C:/Project/EDU/Statistics-ds1139/fix/lg/DNMF/k13/c4d9/Spectral/6/"
+    #path = "C:/Project/EDU/Statistics-ds1139/fix/lg/DNMF/k13/c4d9/"
     
     c = 4
-    d = 9
-    '''
+    d = 15
+    
     #cluster = ['2','3','4','5','6']
     cluster = ['6']
     for number_of_cluster in cluster:
         for cluster in clustering:
             print cluster
-            W_to_plot(path, number_of_cluster, cluster)
-            W_to_heatmap(path, number_of_cluster, cluster, c, d)
-    '''
+            #W_to_plot(path, number_of_cluster, cluster)
+            #W_to_heatmap(path, number_of_cluster, cluster, c, d)
     
+    W_to_plot_toof(path)
+    
+    '''
     #path = 'C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/DNMF/k12/c3d9/Spectral/6/'
     path = "C:/Project/EDU/Statistics-ds1139/fix/post/DNMF/k13/c4d9/Spectral/6/"
+    path = "C:/Project/EDU/OLI_175318/update/step/sep/fix/lg/a0.1b0.9d0.9/k19/c6d13/Spectral/66/"
+    path = "C:/Project/EDU/Statistics-ds1139/fix/lg/final/a10.0b10.0d1.0/k19/c4d15/Spectral/66/"
     
     cluster = ['6']
     for number_of_cluster in cluster:
         for cluster in clustering:
             print cluster
-            #W_to_plot_f(path, number_of_cluster, cluster)
-            W_to_heatmap_simple(path, number_of_cluster, cluster, c, d)
-    
+            W_to_plot_f(path, number_of_cluster, cluster)
+            #W_to_heatmap_simple(path, number_of_cluster, cluster, c, d)
+    '''
     
     

@@ -1,5 +1,0 @@
-K: 26
-Kc: 19
-alpha: 0.1
-beta: 0.1
-gama1.8neg0.01
